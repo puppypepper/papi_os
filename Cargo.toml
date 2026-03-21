@@ -12,5 +12,5 @@ panic = "abort" # disable stack unwinding on panic
 panic = "abort" # disable stack unwinding on panic
 
 [dependencies]
-bootloader = "0.9"
+bootloader = "0.9.34"
 volatile = "0.2.6"
