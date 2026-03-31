@@ -128,4 +128,6 @@ pub fn print_something() {
     write!(writer, "The numbers are {} and {}", 42, 1.0/3.0).unwrap();
     writer.new_line();
     write!(writer, "This is new line.").unwrap();
+    writer.new_line();
+    write!(writer, "This is another new line.").unwrap();
 }
