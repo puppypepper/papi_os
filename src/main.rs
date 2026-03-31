@@ -7,6 +7,9 @@ use core::panic::PanicInfo;
 pub extern "C" fn _start() -> ! {
     vga_buffer::print_something();
 
+    serial_println!("kernel booted");
+    serial_println!("hello from serial");
+
     // this function is the entry point, since the linker looks for a function
     // named `_start` by default
     loop {}
@@ -14,8 +17,13 @@ pub extern "C" fn _start() -> ! {
 
 /// This function is called on panic.
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    serial_println!();
+    serial_println!("================ PANIC ================");
+    serial_println!("{}", info);
+    
     loop {}
 }
 
 mod vga_buffer;
+mod serial;
