@@ -2,6 +2,7 @@
 #![no_main] // disable all Rust-level entry points
 
 use core::panic::PanicInfo;
+use crate::arch::x86_64::hlt_loop;
 
 #[no_mangle] // don't mangle the name of this function
 pub extern "C" fn _start() -> ! {
@@ -12,7 +13,8 @@ pub extern "C" fn _start() -> ! {
 
     // this function is the entry point, since the linker looks for a function
     // named `_start` by default
-    loop {}
+
+    hlt_loop()
 }
 
 /// This function is called on panic.
@@ -21,9 +23,10 @@ fn panic(info: &PanicInfo) -> ! {
     serial_println!();
     serial_println!("================ PANIC ================");
     serial_println!("{}", info);
-    
-    loop {}
+
+    hlt_loop()
 }
 
 mod vga_buffer;
 mod serial;
+mod arch;
