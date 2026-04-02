@@ -27,6 +27,6 @@ fn panic(info: &PanicInfo) -> ! {
     hlt_loop()
 }
 
-mod vga_buffer;
-mod serial;
 mod arch;
+mod serial;
+mod vga_buffer;

@@ -1,8 +1,12 @@
+pub mod interrupts;
+
 use core::arch::asm;
 
 #[inline]
 fn hlt() {
-    unsafe { asm!("hlt"); }
+    unsafe {
+        asm!("hlt");
+    }
 }
 
 pub fn hlt_loop() -> ! {

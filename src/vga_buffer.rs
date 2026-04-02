@@ -83,9 +83,9 @@ impl Writer {
     }
 
     fn new_line(&mut self) {
-        for row in 0..BUFFER_HEIGHT-1 {
+        for row in 0..BUFFER_HEIGHT - 1 {
             for col in 0..BUFFER_WIDTH {
-                let target_char = self.buffer.chars[row+1][col].read();
+                let target_char = self.buffer.chars[row + 1][col].read();
                 self.buffer.chars[row][col].write(target_char);
             }
         }
@@ -97,7 +97,7 @@ impl Writer {
 
         // reset last row
         for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[BUFFER_HEIGHT-1][col].write(blank);
+            self.buffer.chars[BUFFER_HEIGHT - 1][col].write(blank);
         }
 
         // reset to the first position
@@ -125,7 +125,7 @@ pub fn print_something() {
     writer.write_byte(b'H');
     writer.write_string("ello ");
     writer.write_string("Wörld!");
-    write!(writer, "The numbers are {} and {}", 42, 1.0/3.0).unwrap();
+    write!(writer, "The numbers are {} and {}", 42, 1.0 / 3.0).unwrap();
     writer.new_line();
     write!(writer, "This is new line.").unwrap();
     writer.new_line();
