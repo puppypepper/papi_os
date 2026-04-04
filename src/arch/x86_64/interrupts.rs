@@ -1,3 +1,4 @@
+use crate::arch::x86_64::gdt::DOUBLE_FAULT_IST_INDEX;
 use crate::arch::x86_64::hlt_loop;
 use crate::serial_println;
 use lazy_static::lazy_static;
@@ -10,6 +11,10 @@ lazy_static! {
 
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         idt.page_fault.set_handler_fn(page_fault_handler);
+        let double_fault_entry_options = idt.double_fault.set_handler_fn(double_fault_handler);
+        unsafe {
+            double_fault_entry_options.set_stack_index(DOUBLE_FAULT_IST_INDEX);
+        }
 
         idt
     };
@@ -33,6 +38,16 @@ extern "x86-interrupt" fn page_fault_handler(
     // Cr2 register is an x86_64's special register which contains the most recent page fault address.
     serial_println!("Accessed Address: {:?}", Cr2::read());
     serial_println!("Error Code: {:?}", error_code);
+    serial_println!("{:#?}", stack_frame);
+
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn double_fault_handler(
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) -> ! {
+    serial_println!("EXCEPTION: DOUBLE FAULT");
     serial_println!("{:#?}", stack_frame);
 
     hlt_loop();
