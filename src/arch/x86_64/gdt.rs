@@ -18,7 +18,8 @@ lazy_static! {
     static ref TSS: TaskStateSegment = {
         let mut tss = TaskStateSegment::new();
 
-        let stack_start = VirtAddr::from_ptr(unsafe { &DOUBLE_FAULT_STACK });
+        #[allow(unused_unsafe)]
+        let stack_start = VirtAddr::from_ptr(unsafe { &raw const DOUBLE_FAULT_STACK});
         let stack_end = stack_start + STACK_SIZE as u64;
 
         tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = stack_end;
