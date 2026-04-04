@@ -9,8 +9,12 @@ lazy_static! {
     pub static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
 
+        // The IDT stores the handler function addresses,
+        // and the CPU jumps to the appropriate handler when an exception occurs.
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         idt.page_fault.set_handler_fn(page_fault_handler);
+
+        // A double fault occurs when the CPU cannot invoke the handler for a prior exception.
         let double_fault_entry_options = idt.double_fault.set_handler_fn(double_fault_handler);
         unsafe {
             double_fault_entry_options.set_stack_index(DOUBLE_FAULT_IST_INDEX);
@@ -21,6 +25,7 @@ lazy_static! {
 }
 
 pub fn init_idt() {
+    // Load the IDT pointer into the IDTR register.
     IDT.load();
     serial_println!("IDT loaded");
 }
