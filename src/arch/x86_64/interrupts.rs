@@ -1,9 +1,27 @@
 use crate::arch::x86_64::gdt::DOUBLE_FAULT_IST_INDEX;
 use crate::arch::x86_64::hlt_loop;
+use crate::arch::x86_64::pic::{PIC1_OFFSET, PICS};
 use crate::serial_println;
 use lazy_static::lazy_static;
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+
+// Keep interrupt vector indices as `u8` so `PIC1_OFFSET` can be used directly.
+#[repr(u8)]
+pub enum InterruptIndex {
+    Timer = PIC1_OFFSET,
+    Keyboard,
+}
+
+impl InterruptIndex {
+    fn to_u8(self) -> u8 {
+        self as u8
+    }
+
+    fn to_usize(self) -> usize {
+        usize::from(self.to_u8())
+    }
+}
 
 lazy_static! {
     pub static ref IDT: InterruptDescriptorTable = {
@@ -19,6 +37,8 @@ lazy_static! {
         unsafe {
             double_fault_entry_options.set_stack_index(DOUBLE_FAULT_IST_INDEX);
         }
+
+        idt[InterruptIndex::Timer.to_usize()].set_handler_fn(timer_interrupt_handler);
 
         idt
     };
@@ -56,4 +76,15 @@ extern "x86-interrupt" fn double_fault_handler(
     serial_println!("{:#?}", stack_frame);
 
     hlt_loop();
+}
+
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    // Keep the timer handler minimum until the interrupt path is verified.
+    // serial_println!("TIMER");
+
+    // Notify the PIC that interrupt handling is complete.
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Timer.to_u8());
+    }
 }
