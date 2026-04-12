@@ -1,6 +1,8 @@
 use crate::arch::x86_64::gdt::DOUBLE_FAULT_IST_INDEX;
 use crate::arch::x86_64::hlt_loop;
+use crate::arch::x86_64::pic::{InterruptIndex, PICS};
 use crate::serial_println;
+use core::sync::atomic::{AtomicU64, Ordering};
 use lazy_static::lazy_static;
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
@@ -19,6 +21,8 @@ lazy_static! {
         unsafe {
             double_fault_entry_options.set_stack_index(DOUBLE_FAULT_IST_INDEX);
         }
+
+        idt[InterruptIndex::Timer.to_u8()].set_handler_fn(timer_interrupt_handler);
 
         idt
     };
@@ -56,4 +60,19 @@ extern "x86-interrupt" fn double_fault_handler(
     serial_println!("{:#?}", stack_frame);
 
     hlt_loop();
+}
+
+static TIMER_TICKS: AtomicU64 = AtomicU64::new(0);
+const TIMER_LOG_RATE: u64 = 100;
+
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    let tick = TIMER_TICKS.fetch_add(1, Ordering::Relaxed) + 1;
+
+    // Print occasionally so the serial logs stays readable.
+    if tick.is_multiple_of(TIMER_LOG_RATE) {
+        serial_println!("timer tick: {}", tick);
+    }
+
+    // Notify the PIC that interrupt handling is complete.
+    PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.to_u8());
 }

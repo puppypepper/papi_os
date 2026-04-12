@@ -5,7 +5,7 @@
 use crate::arch::x86_64::gdt::init_gdt;
 use crate::arch::x86_64::hlt_loop;
 use crate::arch::x86_64::interrupts::init_idt;
-use core::arch::asm;
+use crate::arch::x86_64::pic::init_pics;
 use core::panic::PanicInfo;
 
 // this function is the entry point, since the linker looks for a function
@@ -14,6 +14,10 @@ use core::panic::PanicInfo;
 pub extern "C" fn _start() -> ! {
     init_gdt();
     init_idt();
+    init_pics();
+
+    // Enable hardware interrupts only after the GDT, IDT, and PIC are ready.
+    x86_64::instructions::interrupts::enable();
 
     vga_buffer::print_something();
 
@@ -21,9 +25,9 @@ pub extern "C" fn _start() -> ! {
     serial_println!("hello from serial");
 
     // `int3` instruction triggers breakpoint exception on x86_64.
-    unsafe {
-        asm!("int3");
-    }
+    // unsafe {
+    //     asm!("int3");
+    // }
 
     hlt_loop()
 }
