@@ -63,7 +63,7 @@ extern "x86-interrupt" fn double_fault_handler(
 }
 
 static TIMER_TICKS: AtomicU64 = AtomicU64::new(0);
-const TIMER_LOG_RATE: u64 = 1000;
+const TIMER_LOG_RATE: u64 = 10;
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     let tick = TIMER_TICKS.fetch_add(1, Ordering::Relaxed) + 1;
