@@ -30,9 +30,12 @@ const ICW1_INIT: u8 = 0x11;
 const ICW4_8086: u8 = 0x01;
 
 // Keep interrupt vector indices as `u8` so `PIC1_OFFSET` can be used directly.
+// WITH `PIC1_OFFSET = 32`, IRQ0 maps to vector 32, IRQ1 maps to vector 33, ad so on.
 #[repr(u8)]
 pub enum InterruptIndex {
+    // Timer interrupt comes from IRQ0 on the master PIC, so it uses vector 32.
     Timer = PIC1_OFFSET,
+    // Keyboard interrupt comes from IRQ1 on the master PIC, so it uses the next vector, 33.
     Keyboard,
 }
 
