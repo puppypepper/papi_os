@@ -26,9 +26,9 @@ pub extern "C" fn _start() -> ! {
     serial_println!("hello from serial");
 
     // `int3` instruction triggers breakpoint exception on x86_64.
-    unsafe {
-        asm!("int3");
-    }
+    // unsafe {
+    //     asm!("int3");
+    // }
 
     hlt_loop()
 }
