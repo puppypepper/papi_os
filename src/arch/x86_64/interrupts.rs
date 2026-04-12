@@ -69,7 +69,7 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
     let tick = TIMER_TICKS.fetch_add(1, Ordering::Relaxed) + 1;
 
     // Print occasionally so the serial logs stays readable.
-    if tick % TIMER_LOG_RATE == 0 {
+    if tick.is_multiple_of(TIMER_LOG_RATE) {
         serial_println!("timer tick: {}", tick);
     }
 

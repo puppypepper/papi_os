@@ -6,7 +6,6 @@ use crate::arch::x86_64::gdt::init_gdt;
 use crate::arch::x86_64::hlt_loop;
 use crate::arch::x86_64::interrupts::init_idt;
 use crate::arch::x86_64::pic::init_pics;
-use core::arch::asm;
 use core::panic::PanicInfo;
 
 // this function is the entry point, since the linker looks for a function
