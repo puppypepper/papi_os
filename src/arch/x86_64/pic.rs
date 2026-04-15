@@ -88,6 +88,10 @@ impl ChainedPics {
     // Remaps and initialize both PICs so their IRQs do not overwrap with CPU execution vectors.
     pub fn initialize(&mut self) {
         // Port 0x80 is traditionally used for a tiny I/O wait between PIC commands.
+        // Writing to it does not synchronize with any device here; it is just a
+        // dummy I/O operation used to slow down consecutive PIC commands slightly.
+        // This old `io_wait` pattern helps keep PIC initialization compatible with
+        // hardware that expects a small delay between port writes.
         let mut wait_port: Port<u8> = Port::new(0x80);
 
         let wait = |wait_port: &mut Port<u8>| unsafe {
@@ -108,6 +112,7 @@ impl ChainedPics {
         wait(&mut wait_port);
 
         // Tell the master that the slave is connected ON IRQ2.
+        // ICW3 for the master PIC: bit 2 set means the slave PIC is connected on IRQ2.
         unsafe { self.master.data.write(4) };
         wait(&mut wait_port);
 
