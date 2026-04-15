@@ -23,6 +23,7 @@ lazy_static! {
         }
 
         idt[InterruptIndex::Timer.to_u8()].set_handler_fn(timer_interrupt_handler);
+        idt[InterruptIndex::Keyboard.to_u8()].set_handler_fn(keyboard_interrupt_handler);
 
         idt
     };
@@ -75,4 +76,11 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 
     // Notify the PIC that interrupt handling is complete.
     PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.to_u8());
+}
+
+extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    serial_println!("KEYBOARD");
+
+    // Notify the PIC that interrupt handling is complete.
+    PICS.lock().notify_end_of_interrupt(InterruptIndex::Keyboard.to_u8());
 }
