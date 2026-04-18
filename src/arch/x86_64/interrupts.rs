@@ -81,6 +81,11 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
     serial_println!("KEYBOARD");
 
+    let mut pics = PICS.lock();
+
+    let scan_code: u8 = pics.read_scan_code();
+    serial_println!("key_input: {:#04x}", scan_code);
+
     // Notify the PIC that interrupt handling is complete.
-    PICS.lock().notify_end_of_interrupt(InterruptIndex::Keyboard.to_u8());
+    pics.notify_end_of_interrupt(InterruptIndex::Keyboard.to_u8());
 }

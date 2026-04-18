@@ -29,6 +29,8 @@ const ICW1_INIT: u8 = 0x11;
 // This value selects 8086/88 mode, which is the mode expected on modern x86 systems.
 const ICW4_8086: u8 = 0x01;
 
+const KEY_INPUT_PORT: u16 = 0x0060;
+
 // Keep interrupt vector indices as `u8` so `PIC1_OFFSET` can be used directly.
 // WITH `PIC1_OFFSET = 32`, IRQ0 maps to vector 32, IRQ1 maps to vector 33, ad so on.
 #[repr(u8)]
@@ -92,7 +94,7 @@ impl ChainedPics {
         // dummy I/O operation used to slow down consecutive PIC commands slightly.
         // This old `io_wait` pattern helps keep PIC initialization compatible with
         // hardware that expects a small delay between port writes.
-        let mut wait_port: Port<u8> = Port::new(0x80);
+        let mut wait_port: Port<u8> = Port::new(0x0080);
 
         let wait = |wait_port: &mut Port<u8>| unsafe {
             wait_port.write(0);
@@ -137,6 +139,13 @@ impl ChainedPics {
         } else if self.master.handles_interrupt(interrupt_id) {
             unsafe { self.master.command.write(PIC_EOI) };
         }
+    }
+
+    pub fn read_scan_code(&mut self) -> u8 {
+        let mut key_input_port: Port<u8> = Port::new(KEY_INPUT_PORT);
+
+        let scan_code: u8 = unsafe { key_input_port.read() };
+        scan_code
     }
 }
 
