@@ -83,6 +83,8 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 
     let mut pics = PICS.lock();
 
+    // Reading port 0x60 drains the pending keyboard controller byte for this IRQ.
+    // At this stage we only log the raw scancode and do not decode it yet.
     let scan_code: u8 = pics.read_scan_code();
     serial_println!("key_input: {:#04x}", scan_code);
 

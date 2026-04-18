@@ -29,6 +29,8 @@ const ICW1_INIT: u8 = 0x11;
 // This value selects 8086/88 mode, which is the mode expected on modern x86 systems.
 const ICW4_8086: u8 = 0x01;
 
+// Port 0x60 is the legacy keyboard controller data port.
+// Reading it pulls out the current scancode byte queued for IRQ1.
 const KEY_INPUT_PORT: u16 = 0x0060;
 
 // Keep interrupt vector indices as `u8` so `PIC1_OFFSET` can be used directly.
