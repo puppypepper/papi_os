@@ -23,6 +23,7 @@ lazy_static! {
         }
 
         idt[InterruptIndex::Timer.to_u8()].set_handler_fn(timer_interrupt_handler);
+        idt[InterruptIndex::Keyboard.to_u8()].set_handler_fn(keyboard_interrupt_handler);
 
         idt
     };
@@ -75,4 +76,18 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 
     // Notify the PIC that interrupt handling is complete.
     PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.to_u8());
+}
+
+extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    serial_println!("KEYBOARD");
+
+    let mut pics = PICS.lock();
+
+    // Reading port 0x60 drains the pending keyboard controller byte for this IRQ.
+    // At this stage we only log the raw scancode and do not decode it yet.
+    let scan_code: u8 = pics.read_scan_code();
+    serial_println!("key_input: {:#04x}", scan_code);
+
+    // Notify the PIC that interrupt handling is complete.
+    pics.notify_end_of_interrupt(InterruptIndex::Keyboard.to_u8());
 }
