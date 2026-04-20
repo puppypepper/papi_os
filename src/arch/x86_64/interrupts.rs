@@ -75,7 +75,8 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
     }
 
     // Notify the PIC that interrupt handling is complete.
-    PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.to_u8());
+    PICS.lock()
+        .notify_end_of_interrupt(InterruptIndex::Timer.to_u8());
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {

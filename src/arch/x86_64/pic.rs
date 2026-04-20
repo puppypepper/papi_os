@@ -82,12 +82,12 @@ pub struct ChainedPics {
 }
 
 impl ChainedPics {
-   pub const fn new(pic1_offset: u8, pic2_offset: u8) -> Self {
-       Self {
-           master: Pic::new(pic1_offset, PIC1_COMMAND, PIC1_DATA),
-           slave: Pic::new(pic2_offset, PIC2_COMMAND, PIC2_DATA),
-       }
-   }
+    pub const fn new(pic1_offset: u8, pic2_offset: u8) -> Self {
+        Self {
+            master: Pic::new(pic1_offset, PIC1_COMMAND, PIC1_DATA),
+            slave: Pic::new(pic2_offset, PIC2_COMMAND, PIC2_DATA),
+        }
+    }
 
     // Remaps and initialize both PICs so their IRQs do not overwrap with CPU execution vectors.
     pub fn initialize(&mut self) {
