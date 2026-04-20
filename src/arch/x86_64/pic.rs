@@ -2,8 +2,8 @@ use spin::Mutex;
 use x86_64::instructions::interrupts;
 use x86_64::instructions::port::Port;
 
-/// PIC is Programmable Interrupt Controller, receives IRQ and tells it to CPU.
-/// PIC itself is a dedicated hardware, controlled by this file via I/O port.
+// PIC is Programmable Interrupt Controller, receives IRQ and tells it to CPU.
+// PIC itself is a dedicated hardware, controlled by this file via I/O port.
 
 // PIC1 is the master PIC and handles the first 8 IRQ lines.
 // PIC2 is the slave PIC and handles the next 8 IRQ lines.
@@ -35,6 +35,7 @@ const KEY_INPUT_PORT: u16 = 0x0060;
 
 // Keep interrupt vector indices as `u8` so `PIC1_OFFSET` can be used directly.
 // WITH `PIC1_OFFSET = 32`, IRQ0 maps to vector 32, IRQ1 maps to vector 33, ad so on.
+#[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum InterruptIndex {
     // Timer interrupt comes from IRQ0 on the master PIC, so it uses vector 32.
@@ -152,12 +153,9 @@ impl ChainedPics {
 }
 
 // The PIC forwards external IRQs, Interrupt Requests, such as timer and keyboard interrupts to the CPU.
-pub static PICS: Mutex<ChainedPics> =
-    Mutex::new(unsafe { ChainedPics::new(PIC1_OFFSET, PIC2_OFFSET) });
+pub static PICS: Mutex<ChainedPics> = Mutex::new(ChainedPics::new(PIC1_OFFSET, PIC2_OFFSET));
 
 pub fn init_pics() {
     // Initialize the PIC before enabling external interrupts.
-    interrupts::without_interrupts(|| unsafe {
-        PICS.lock().initialize();
-    });
+    interrupts::without_interrupts(|| PICS.lock().initialize());
 }
