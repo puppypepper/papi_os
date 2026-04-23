@@ -8,6 +8,8 @@ use crate::arch::x86_64::interrupts::init_idt;
 use crate::arch::x86_64::pic::init_pics;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
+use x86_64::structures::paging::FrameAllocator;
+use crate::memory::BootInfoFrameAllocator;
 
 entry_point!(kernel_main);
 
@@ -18,8 +20,16 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     memory::print_memory_map(&boot_info.memory_map);
 
+    let mut frame_allocator = BootInfoFrameAllocator::init(&boot_info.memory_map);
+
     // Enable hardware interrupts only after the GDT, IDT, and PIC are ready.
     x86_64::instructions::interrupts::enable();
+
+    for _ in 0..5 {
+        if let Some(frame) = frame_allocator.allocate_frame() {
+            serial_println!("allocated frame: {:#018x}", frame.start_address().as_u64());
+        }
+    }
 
     vga_buffer::print_something();
 
