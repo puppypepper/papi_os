@@ -6,7 +6,7 @@ use crate::arch::x86_64::gdt::init_gdt;
 use crate::arch::x86_64::hlt_loop;
 use crate::arch::x86_64::interrupts::init_idt;
 use crate::arch::x86_64::pic::init_pics;
-use crate::memory::BootInfoFrameAllocator;
+use crate::memory::{BootInfoFrameAllocator, PhysicalMemoryOffest};
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use x86_64::structures::paging::FrameAllocator;
@@ -26,6 +26,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // Build a simple allocator that hands out 4 KiB physical frames from
     // regions marked `Usable` in the bootloader's memory map.
     let mut frame_allocator = BootInfoFrameAllocator::init(&boot_info.memory_map);
+
+    let physical_memory_offset = PhysicalMemoryOffest::new(boot_info.physical_memory_offset);
+    let _page_mapper = unsafe { memory::init(physical_memory_offset) };
 
     // Enable hardware interrupts only after the GDT, IDT, and PIC are ready.
     x86_64::instructions::interrupts::enable();

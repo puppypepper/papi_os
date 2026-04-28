@@ -1,7 +1,44 @@
 use crate::serial_println;
 use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
-use x86_64::structures::paging::{FrameAllocator, PageSize, PhysFrame, Size4KiB};
-use x86_64::PhysAddr;
+use x86_64::structures::paging::{FrameAllocator, OffsetPageTable, PageSize, PageTable, PhysFrame, Size4KiB};
+use x86_64::{PhysAddr, VirtAddr};
+use x86_64::registers::control::{Cr3, Cr3Flags};
+
+pub struct PhysicalMemoryOffest(u64);
+
+impl PhysicalMemoryOffest {
+    pub const fn new(offset: u64) -> Self {
+        Self(offset)
+    }
+
+    fn as_virt_addr(&self) -> VirtAddr {
+        VirtAddr::new(self.0)
+    }
+}
+
+pub struct PageMapper {
+    _inner: OffsetPageTable<'static>,
+}
+
+pub unsafe fn init(physical_memory_offest: PhysicalMemoryOffest) -> PageMapper {
+    let level4_table = active_level4_table(&physical_memory_offest);
+
+    PageMapper {
+        _inner: OffsetPageTable::new(level4_table, physical_memory_offest.as_virt_addr()),
+    }
+}
+
+unsafe fn active_level4_table(
+    physical_memory_offest: &PhysicalMemoryOffest,
+) -> &'static mut PageTable {
+    let (level4_table_frame, _): (PhysFrame, Cr3Flags) = Cr3::read();
+    let physical_address: PhysAddr = level4_table_frame.start_address();
+    let virtual_address: VirtAddr = physical_memory_offest.as_virt_addr() + physical_address.as_u64();
+    let page_table_ptr: *mut PageTable = virtual_address.as_mut_ptr();
+
+    &mut *page_table_ptr
+}
+
 
 // Log the physical memory regions that the bootloader reported to the kernel.
 pub fn print_memory_map(memory_map: &MemoryMap) {
