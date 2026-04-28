@@ -25,9 +25,22 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     // Build a simple allocator that hands out 4 KiB physical frames from
     // regions marked `Usable` in the bootloader's memory map.
-    let mut frame_allocator = BootInfoFrameAllocator::init(&boot_info.memory_map);
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
+    // The bootloader mapped physical memory into the kernel's virtual address
+    // space at a fixed offset and reports that offset through `BootInfo`.
+    // From this point on, paging code can translate:
+    //
+    //     virtual address = physical address + physical_memory_offset
+    // That is what lets the kernel access page tables and other physical
+    // memory-backed structures through normal virtual addresses.
     let physical_memory_offset = PhysicalMemoryOffest::new(boot_info.physical_memory_offset);
+    serial_println!("physical memory offset: {:#018x}", &physical_memory_offset.as_u64());
+
+    // `PageMapper` is the facade for "the currently active paging state".
+    // Creating it means: find the page tables that are already active on the
+    // CPU and wrap them in an object that later code can use to add or inspect
+    // mappings.
     let _page_mapper = unsafe { memory::init(physical_memory_offset) };
 
     // Enable hardware interrupts only after the GDT, IDT, and PIC are ready.
