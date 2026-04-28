@@ -35,7 +35,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // That is what lets the kernel access page tables and other physical
     // memory-backed structures through normal virtual addresses.
     let physical_memory_offset = PhysicalMemoryOffest::new(boot_info.physical_memory_offset);
-    serial_println!("physical memory offset: {:#018x}", &physical_memory_offset.as_u64());
+    serial_println!(
+        "physical memory offset: {:#018x}",
+        &physical_memory_offset.as_u64()
+    );
 
     // `PageMapper` is the facade for "the currently active paging state".
     // Creating it means: find the page tables that are already active on the
