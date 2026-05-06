@@ -47,8 +47,11 @@ pub unsafe fn init(physical_memory_offest: &PhysicalMemoryOffest) -> PageMapper 
 }
 
 impl PageMapper {
-    // Map one virtual page to physical memory page
-    // Return mapped physical address.
+    // Map one 4 KiB virtual page to one 4 KiB physical frame.
+    //
+    // Paging works at page granularity, so even if later code writes only a
+    // single `u64`, the CPU still needs a page-table entry for the whole page
+    // containing that address.
     pub fn map_page(&mut self, virt_addr_raw: u64, boot_info_frame_allocator: &mut BootInfoFrameAllocator) {
         let virt_addr: VirtAddr = VirtAddr::new(virt_addr_raw);
         let page: Page<Size4KiB> = Page::containing_address(virt_addr);
@@ -56,13 +59,23 @@ impl PageMapper {
         let frame: PhysFrame =
             boot_info_frame_allocator.allocate_frame().expect("failed to allocate physical frame");
 
+        // `PRESENT` means the page is valid and may participate in address
+        // translation. `WRITABLE` means writes through this mapping are allowed.
+        // Without these flags, the CPU would either reject the mapping or treat
+        // it as read-only.
         let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
 
         let flush = unsafe {
+            // `map_to` updates the page-table hierarchy so that `page` resolves
+            // to `frame`. If intermediate page tables are missing, it uses the
+            // frame allocator to create them.
             self._inner.map_to(page, frame, flags, boot_info_frame_allocator).expect("map_to failed")
         };
 
-        // explain flush from the TLB
+        // The CPU caches recent virtual->physical translations in the TLB
+        // (Translation Lookaside Buffer). After changing the page tables, we
+        // must invalidate the stale cached entry so future accesses use the new
+        // mapping we just installed.
         flush.flush();
     }
 }
