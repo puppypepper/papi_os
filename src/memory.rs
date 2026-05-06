@@ -42,7 +42,7 @@ pub struct PageMapper {
 // We do not create a fresh paging hierarchy here. We reuse the one that is
 // already active when the bootloader enters the kernel.
 pub unsafe fn init(physical_memory_offest: &PhysicalMemoryOffest) -> PageMapper {
-    let level4_table = active_level4_table(&physical_memory_offest);
+    let level4_table = active_level4_table(physical_memory_offest);
 
     PageMapper {
         _inner: OffsetPageTable::new(level4_table, physical_memory_offest.as_virt_addr()),
