@@ -1,7 +1,10 @@
 use crate::serial_println;
 use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
 use x86_64::registers::control::{Cr3, Cr3Flags};
-use x86_64::structures::paging::{FrameAllocator, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame, Size4KiB};
+use x86_64::structures::paging::{
+    FrameAllocator, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame,
+    Size4KiB,
+};
 use x86_64::{PhysAddr, VirtAddr};
 
 pub struct PhysicalMemoryOffest(u64);
@@ -52,12 +55,17 @@ impl PageMapper {
     // Paging works at page granularity, so even if later code writes only a
     // single `u64`, the CPU still needs a page-table entry for the whole page
     // containing that address.
-    pub fn map_page(&mut self, virt_addr_raw: u64, boot_info_frame_allocator: &mut BootInfoFrameAllocator) {
+    pub fn map_page(
+        &mut self,
+        virt_addr_raw: u64,
+        boot_info_frame_allocator: &mut BootInfoFrameAllocator,
+    ) {
         let virt_addr: VirtAddr = VirtAddr::new(virt_addr_raw);
         let page: Page<Size4KiB> = Page::containing_address(virt_addr);
 
-        let frame: PhysFrame =
-            boot_info_frame_allocator.allocate_frame().expect("failed to allocate physical frame");
+        let frame: PhysFrame = boot_info_frame_allocator
+            .allocate_frame()
+            .expect("failed to allocate physical frame");
 
         // `PRESENT` means the page is valid and may participate in address
         // translation. `WRITABLE` means writes through this mapping are allowed.
@@ -69,7 +77,9 @@ impl PageMapper {
             // `map_to` updates the page-table hierarchy so that `page` resolves
             // to `frame`. If intermediate page tables are missing, it uses the
             // frame allocator to create them.
-            self._inner.map_to(page, frame, flags, boot_info_frame_allocator).expect("map_to failed")
+            self._inner
+                .map_to(page, frame, flags, boot_info_frame_allocator)
+                .expect("map_to failed")
         };
 
         // The CPU caches recent virtual->physical translations in the TLB
