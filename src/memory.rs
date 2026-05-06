@@ -1,9 +1,7 @@
 use crate::serial_println;
 use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
 use x86_64::registers::control::{Cr3, Cr3Flags};
-use x86_64::structures::paging::{
-    FrameAllocator, OffsetPageTable, PageSize, PageTable, PhysFrame, Size4KiB,
-};
+use x86_64::structures::paging::{FrameAllocator, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
 pub struct PhysicalMemoryOffest(u64);
@@ -40,11 +38,32 @@ pub struct PageMapper {
 //
 // We do not create a fresh paging hierarchy here. We reuse the one that is
 // already active when the bootloader enters the kernel.
-pub unsafe fn init(physical_memory_offest: PhysicalMemoryOffest) -> PageMapper {
+pub unsafe fn init(physical_memory_offest: &PhysicalMemoryOffest) -> PageMapper {
     let level4_table = active_level4_table(&physical_memory_offest);
 
     PageMapper {
         _inner: OffsetPageTable::new(level4_table, physical_memory_offest.as_virt_addr()),
+    }
+}
+
+impl PageMapper {
+    // Map one virtual page to physical memory page
+    // Return mapped physical address.
+    pub fn map_page(&mut self, virt_addr_raw: u64, boot_info_frame_allocator: &mut BootInfoFrameAllocator) {
+        let virt_addr: VirtAddr = VirtAddr::new(virt_addr_raw);
+        let page: Page<Size4KiB> = Page::containing_address(virt_addr);
+
+        let frame: PhysFrame =
+            boot_info_frame_allocator.allocate_frame().expect("failed to allocate physical frame");
+
+        let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+
+        let flush = unsafe {
+            self._inner.map_to(page, frame, flags, boot_info_frame_allocator).expect("map_to failed")
+        };
+
+        // explain flush from the TLB
+        flush.flush();
     }
 }
 
