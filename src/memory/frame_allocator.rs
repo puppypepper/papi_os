@@ -1,6 +1,6 @@
 use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
-use x86_64::PhysAddr;
 use x86_64::structures::paging::{FrameAllocator, PageSize, PhysFrame, Size4KiB};
+use x86_64::PhysAddr;
 
 // Minimal frame allocator backed directly by the bootloader's memory map.
 pub struct BootInfoFrameAllocator {

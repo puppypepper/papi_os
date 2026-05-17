@@ -4,10 +4,7 @@ pub(crate) mod page_mapper;
 pub(crate) use crate::memory::frame_allocator::BootInfoFrameAllocator;
 pub(crate) use crate::memory::page_mapper::{PageMapper, PhysicalMemoryOffest};
 use crate::serial_println;
-use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
-use x86_64::registers::control::{Cr3, Cr3Flags};
-use x86_64::structures::paging::{PageSize, PageTable, PhysFrame, Size4KiB};
-use x86_64::{PhysAddr, VirtAddr};
+use bootloader::bootinfo::MemoryMap;
 
 // Log the physical memory regions that the bootloader reported to the kernel.
 pub fn print_memory_map(memory_map: &MemoryMap) {

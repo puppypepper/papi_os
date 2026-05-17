@@ -1,6 +1,8 @@
+use crate::memory::BootInfoFrameAllocator;
 use x86_64::registers::control::{Cr3, Cr3Flags};
-use crate::memory::{BootInfoFrameAllocator};
-use x86_64::structures::paging::{FrameAllocator, Mapper, OffsetPageTable, Page, PageTable, PageTableFlags, PhysFrame, Size4KiB};
+use x86_64::structures::paging::{
+    FrameAllocator, Mapper, OffsetPageTable, Page, PageTable, PageTableFlags, PhysFrame, Size4KiB,
+};
 use x86_64::{PhysAddr, VirtAddr};
 
 // Build a mapper for the page tables that the bootloader already installed.

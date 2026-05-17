@@ -44,7 +44,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // Creating it means: find the page tables that are already active on the
     // CPU and wrap them in an object that later code can use to add or inspect
     // mappings.
-    let mut page_mapper: PageMapper = unsafe { memory::page_mapper::init_page_mapper(&physical_memory_offset) };
+    let mut page_mapper: PageMapper =
+        unsafe { memory::page_mapper::init_page_mapper(&physical_memory_offset) };
 
     // Enable hardware interrupts only after the GDT, IDT, and PIC are ready.
     x86_64::instructions::interrupts::enable();
