@@ -1,6 +1,8 @@
-use x86_64::structures::paging::{FrameAllocator, Mapper, OffsetPageTable, Page, PageTableFlags, PhysFrame, Size4KiB};
-use x86_64::VirtAddr;
 use crate::memory::{active_level4_table, BootInfoFrameAllocator};
+use x86_64::structures::paging::{
+    FrameAllocator, Mapper, OffsetPageTable, Page, PageTableFlags, PhysFrame, Size4KiB,
+};
+use x86_64::VirtAddr;
 
 pub struct PhysicalMemoryOffest(u64);
 

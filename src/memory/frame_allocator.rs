@@ -1,6 +1,6 @@
+use crate::memory::usable_frame;
 use bootloader::bootinfo::MemoryMap;
 use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
-use crate::memory::usable_frame;
 
 // Minimal frame allocator backed directly by the bootloader's memory map.
 pub struct BootInfoFrameAllocator {

@@ -1,16 +1,13 @@
-pub(crate) mod page_mapper;
 mod frame_allocator;
+pub(crate) mod page_mapper;
 
+pub(crate) use crate::memory::frame_allocator::BootInfoFrameAllocator;
+pub(crate) use crate::memory::page_mapper::{PageMapper, PhysicalMemoryOffest};
 use crate::serial_println;
 use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
 use x86_64::registers::control::{Cr3, Cr3Flags};
-use x86_64::structures::paging::{
-    FrameAllocator, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame,
-    Size4KiB,
-};
+use x86_64::structures::paging::{PageSize, PageTable, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
-pub(crate) use crate::memory::frame_allocator::BootInfoFrameAllocator;
-pub(crate) use crate::memory::page_mapper::{PageMapper, PhysicalMemoryOffest};
 
 // Read CR3 to find the currently active level 4 page table frame, then convert
 // that physical address into a virtual address through the bootloader's
