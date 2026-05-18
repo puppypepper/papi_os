@@ -50,7 +50,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut page_mapper: PageMapper =
         unsafe { memory::page_mapper::init_page_mapper(&physical_memory_offset) };
 
-    // Initialize Box will fail due to heap not initialized yet
+    // `alloc`-based types such as `Box` are not usable yet. The global
+    // allocator object exists, but its heap arena is still empty until
+    // `init_heap(...)` maps the heap range and hands that range to the
+    // allocator.
     // let boxed = Box::new(0);
     // serial_println!("Box: {:?}", boxed);
 
@@ -76,6 +79,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         serial_println!("vptr: {:#018x}", *vptr);
     }
 
+    // Minimal heap smoke test: if `Box::new(...)` succeeds and we can read the
+    // stored value back, then the kernel heap mapping plus the global allocator
+    // initialization are at least working for a simple allocation.
     let boxed = Box::new(1);
     serial_println!("Box: {:?}", boxed);
 
