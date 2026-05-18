@@ -1,7 +1,9 @@
 mod frame_allocator;
+mod heap_allocator;
 pub(crate) mod page_mapper;
 
 pub(crate) use crate::memory::frame_allocator::BootInfoFrameAllocator;
+pub(crate) use crate::memory::heap_allocator::init_heap;
 pub(crate) use crate::memory::page_mapper::{PageMapper, PhysicalMemoryOffest};
 use crate::serial_println;
 use bootloader::bootinfo::MemoryMap;
