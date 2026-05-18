@@ -2,6 +2,9 @@
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
 
+extern crate alloc;
+
+use alloc::boxed::Box;
 use crate::arch::x86_64::gdt::init_gdt;
 use crate::arch::x86_64::hlt_loop;
 use crate::arch::x86_64::interrupts::init_idt;
@@ -47,6 +50,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut page_mapper: PageMapper =
         unsafe { memory::page_mapper::init_page_mapper(&physical_memory_offset) };
 
+    // Initialize Box will fail due to heap not initialized yet
+    // let boxed = Box::new(0);
+    // serial_println!("Box: {:?}", boxed);
+
     init_heap(&mut frame_allocator, &mut page_mapper);
 
     // Enable hardware interrupts only after the GDT, IDT, and PIC are ready.
@@ -68,6 +75,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         serial_println!("val:  {:#018x}", val);
         serial_println!("vptr: {:#018x}", *vptr);
     }
+
+    let boxed = Box::new(1);
+    serial_println!("Box: {:?}", boxed);
 
     vga_buffer::print_something();
 
