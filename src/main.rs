@@ -4,12 +4,12 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
 use crate::arch::x86_64::gdt::init_gdt;
 use crate::arch::x86_64::hlt_loop;
 use crate::arch::x86_64::interrupts::init_idt;
 use crate::arch::x86_64::pic::init_pics;
 use crate::memory::{init_heap, BootInfoFrameAllocator, PageMapper, PhysicalMemoryOffest};
+use alloc::boxed::Box;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use x86_64::structures::paging::FrameAllocator;

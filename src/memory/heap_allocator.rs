@@ -1,7 +1,7 @@
+use crate::memory::{BootInfoFrameAllocator, PageMapper};
 use core::alloc::{GlobalAlloc, Layout};
 use linked_list_allocator::LockedHeap;
 use x86_64::structures::paging::{PageSize, Size4KiB};
-use crate::memory::{BootInfoFrameAllocator, PageMapper};
 
 // Register the kernel heap allocator as Rust's global allocator.
 //
@@ -21,10 +21,7 @@ static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator::empty();
 const HEAP_START: u64 = 0x_0000_5555_0000_0000;
 const HEAP_BYTE_SIZE: usize = 100 * 1024; // 100KiB
 
-pub fn init_heap(
-    frame_allocator: &mut BootInfoFrameAllocator,
-    page_mapper: &mut PageMapper,
-) {
+pub fn init_heap(frame_allocator: &mut BootInfoFrameAllocator, page_mapper: &mut PageMapper) {
     // The heap allocator expets one contiguous virtual range that it can treat
     // as its arena. So first we make every 4KiB page in that range valid by
     // mapping it to a fresh physical frame.
@@ -64,7 +61,9 @@ impl KernelHeapAllocator {
         // `LockedHeap` manages a raw memory arena. We pass the start address of
         // the mapped heap region plus its byte size so it can build its free
         // list over that range.
-        self._allocator.lock().init(heap_start as *mut u8, heap_size);
+        self._allocator
+            .lock()
+            .init(heap_start as *mut u8, heap_size);
     }
 }
 
