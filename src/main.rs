@@ -2,11 +2,14 @@
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
 
+extern crate alloc;
+
 use crate::arch::x86_64::gdt::init_gdt;
 use crate::arch::x86_64::hlt_loop;
 use crate::arch::x86_64::interrupts::init_idt;
 use crate::arch::x86_64::pic::init_pics;
-use crate::memory::{BootInfoFrameAllocator, PageMapper, PhysicalMemoryOffest};
+use crate::memory::{init_heap, BootInfoFrameAllocator, PageMapper, PhysicalMemoryOffest};
+use alloc::boxed::Box;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use x86_64::structures::paging::FrameAllocator;
@@ -47,6 +50,15 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut page_mapper: PageMapper =
         unsafe { memory::page_mapper::init_page_mapper(&physical_memory_offset) };
 
+    // `alloc`-based types such as `Box` are not usable yet. The global
+    // allocator object exists, but its heap arena is still empty until
+    // `init_heap(...)` maps the heap range and hands that range to the
+    // allocator.
+    // let boxed = Box::new(0);
+    // serial_println!("Box: {:?}", boxed);
+
+    init_heap(&mut frame_allocator, &mut page_mapper);
+
     // Enable hardware interrupts only after the GDT, IDT, and PIC are ready.
     x86_64::instructions::interrupts::enable();
 
@@ -66,6 +78,12 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         serial_println!("val:  {:#018x}", val);
         serial_println!("vptr: {:#018x}", *vptr);
     }
+
+    // Minimal heap smoke test: if `Box::new(...)` succeeds and we can read the
+    // stored value back, then the kernel heap mapping plus the global allocator
+    // initialization are at least working for a simple allocation.
+    let boxed = Box::new(1);
+    serial_println!("Box: {:?}", boxed);
 
     vga_buffer::print_something();
 
