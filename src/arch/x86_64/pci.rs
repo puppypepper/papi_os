@@ -8,6 +8,7 @@ const MAX_FUNC: u8 = 7;
 const CONFIG_ADDRESS: u16 = 0x0CF8;
 const CONFIG_DATA: u16 = 0x0CFC;
 
+#[allow(dead_code)]
 struct PciDeviceConfig {
     vendor_id: u16,
     device_id: u16,
