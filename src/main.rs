@@ -13,6 +13,7 @@ use alloc::boxed::Box;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use x86_64::structures::paging::FrameAllocator;
+use crate::arch::x86_64::pci::scan_pci_bus;
 
 // `entry_point!` generates the `_start` symbol with the ABI expected by the
 // bootloader and passes startup information as `&'static BootInfo`.
@@ -61,6 +62,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     // Enable hardware interrupts only after the GDT, IDT, and PIC are ready.
     x86_64::instructions::interrupts::enable();
+
+    scan_pci_bus();
 
     // Allocate a few frames as a smoke test and log their physical addresses.
     for _ in 0..5 {
