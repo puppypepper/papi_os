@@ -1,7 +1,7 @@
 pub mod gdt;
 pub mod interrupts;
-pub mod pic;
 pub mod pci;
+pub mod pic;
 
 use core::arch::asm;
 

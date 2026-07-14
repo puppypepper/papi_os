@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+echo "=== pre-push: cargo check ==="
+cargo check
+
+echo "=== pre-push: cargo fmt ==="
+cargo fmt --all -- --check
+
+echo "=== pre-push: cargo clippy ==="
+cargo clippy -- -D warnings
+
+echo "=== pre-push: all checks passed ==="

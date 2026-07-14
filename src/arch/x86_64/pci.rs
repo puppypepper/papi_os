@@ -1,5 +1,5 @@
-use x86_64::instructions::port::Port;
 use crate::serial_println;
+use x86_64::instructions::port::Port;
 
 const MAX_BUS: u8 = 255;
 const MAX_DEVICE: u8 = 31;
