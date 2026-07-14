@@ -7,6 +7,7 @@ extern crate alloc;
 use crate::arch::x86_64::gdt::init_gdt;
 use crate::arch::x86_64::hlt_loop;
 use crate::arch::x86_64::interrupts::init_idt;
+use crate::arch::x86_64::pci::scan_pci_bus;
 use crate::arch::x86_64::pic::init_pics;
 use crate::memory::{init_heap, BootInfoFrameAllocator, PageMapper, PhysicalMemoryOffest};
 use alloc::boxed::Box;
@@ -61,6 +62,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     // Enable hardware interrupts only after the GDT, IDT, and PIC are ready.
     x86_64::instructions::interrupts::enable();
+
+    scan_pci_bus();
 
     // Allocate a few frames as a smoke test and log their physical addresses.
     for _ in 0..5 {

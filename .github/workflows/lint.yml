@@ -12,8 +12,10 @@ jobs:
 
       # This repository uses a nightly custom target plus build-std, so Clippy
       # must come from the same pinned toolchain as the build.
+      # `rustup show` reads rust-toolchain.toml and installs the pinned toolchain
+      # along with all listed components (rustfmt, clippy, etc.) if not present.
       - name: Install pinned Rust toolchain
-        run: rustup show active-toolchain || rustup toolchain install
+        run: rustup show
 
       - name: Run check
         run: cargo check
