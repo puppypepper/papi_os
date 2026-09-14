@@ -114,5 +114,5 @@ fn panic(info: &PanicInfo) -> ! {
 mod arch;
 mod memory;
 mod serial;
-mod vga_buffer;
 mod task;
+mod vga_buffer;
