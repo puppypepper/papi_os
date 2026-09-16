@@ -1,9 +1,9 @@
+use crate::serial_println;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
-use crate::serial_println;
 
 pub struct Task {
     future: Pin<Box<dyn Future<Output = ()>>>,
@@ -28,7 +28,7 @@ unsafe fn dummy_raw_waker(_: *const ()) -> RawWaker {
 }
 
 fn dummy_waker() -> Waker {
-    let raw_waker = unsafe { dummy_raw_waker(core::ptr::null())};
+    let raw_waker = unsafe { dummy_raw_waker(core::ptr::null()) };
     unsafe { Waker::from_raw(raw_waker) }
 }
 
@@ -37,7 +37,7 @@ unsafe fn wake_by_ref(_: *const ()) {}
 unsafe fn drop(_: *const ()) {}
 
 pub struct SimpleExecutor {
-    tasks: VecDeque<Task>
+    tasks: VecDeque<Task>,
 }
 
 impl SimpleExecutor {
@@ -56,8 +56,8 @@ impl SimpleExecutor {
             let waker = dummy_waker();
             let mut ctx = Context::from_waker(&waker);
             match task.poll(&mut ctx) {
-                Poll::Ready(()) => {},
-                Poll::Pending => self.tasks.push_back(task)
+                Poll::Ready(()) => {}
+                Poll::Pending => self.tasks.push_back(task),
             }
         }
     }
