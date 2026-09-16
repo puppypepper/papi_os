@@ -14,6 +14,7 @@ use alloc::boxed::Box;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use x86_64::structures::paging::FrameAllocator;
+use crate::task::{sample_async_task, SimpleExecutor, Task};
 
 // `entry_point!` generates the `_start` symbol with the ABI expected by the
 // bootloader and passes startup information as `&'static BootInfo`.
@@ -97,6 +98,11 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // unsafe {
     //     asm!("int3");
     // }
+
+    let mut executor = SimpleExecutor::new();
+    let task = Task::new(sample_async_task());
+    executor.spawn_task(task);
+    executor.run();
 
     hlt_loop()
 }
