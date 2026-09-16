@@ -3,15 +3,21 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use core::future::Future;
 use core::pin::Pin;
+use core::sync::atomic::{AtomicU64, Ordering};
 use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
+static TASK_ID: AtomicU64 = AtomicU64::new(1);
+
 pub struct Task {
+    id: u64,
     future: Pin<Box<dyn Future<Output = ()>>>,
 }
 
 impl Task {
     pub fn new(future: impl Future<Output = ()> + 'static) -> Self {
+        let task_id = TASK_ID.fetch_add(1, Ordering::Relaxed);
         Task {
+            id: task_id,
             future: Box::pin(future),
         }
     }
