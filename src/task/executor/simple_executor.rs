@@ -1,6 +1,6 @@
+use crate::task::{dummy_waker, Task};
 use alloc::collections::VecDeque;
 use core::task::{Context, Poll};
-use crate::task::{dummy_waker, Task};
 
 pub struct SimpleExecutor {
     tasks: VecDeque<Task>,

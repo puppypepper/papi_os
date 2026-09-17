@@ -47,7 +47,6 @@ unsafe fn wake(_: *const ()) {}
 unsafe fn wake_by_ref(_: *const ()) {}
 unsafe fn drop(_: *const ()) {}
 
-
 pub async fn sample_async_task() {
     serial_println!("This is sample async task");
 }

@@ -1,9 +1,9 @@
+use crate::serial_println;
+use crate::task::{dummy_waker, Task, TaskId};
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use core::task::{Context, Poll};
 use spin::Mutex;
-use crate::serial_println;
-use crate::task::{dummy_waker, Task, TaskId};
 
 pub struct BTreeMapExecutor {
     tasks: BTreeMap<TaskId, Task>,
