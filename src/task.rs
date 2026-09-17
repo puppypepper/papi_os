@@ -1,15 +1,16 @@
 use crate::serial_println;
 use alloc::boxed::Box;
-use alloc::collections::VecDeque;
 use core::future::Future;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicU64, Ordering};
 use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
-mod executor;
+pub mod executor;
+pub mod waker;
 
 static TASK_ID: AtomicU64 = AtomicU64::new(1);
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct TaskId(u64);
 
 pub struct Task {
@@ -46,32 +47,6 @@ unsafe fn wake(_: *const ()) {}
 unsafe fn wake_by_ref(_: *const ()) {}
 unsafe fn drop(_: *const ()) {}
 
-pub struct SimpleExecutor {
-    tasks: VecDeque<Task>,
-}
-
-impl SimpleExecutor {
-    pub fn new() -> Self {
-        SimpleExecutor {
-            tasks: VecDeque::new(),
-        }
-    }
-
-    pub fn spawn_task(&mut self, task: Task) {
-        self.tasks.push_back(task)
-    }
-
-    pub fn run(&mut self) {
-        while let Some(mut task) = self.tasks.pop_front() {
-            let waker = dummy_waker();
-            let mut ctx = Context::from_waker(&waker);
-            match task.poll(&mut ctx) {
-                Poll::Ready(()) => {}
-                Poll::Pending => self.tasks.push_back(task),
-            }
-        }
-    }
-}
 
 pub async fn sample_async_task() {
     serial_println!("This is sample async task");
