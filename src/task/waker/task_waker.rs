@@ -3,6 +3,7 @@ use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::task::Wake;
 use spin::{Mutex, MutexGuard};
+use crate::serial_println;
 
 pub struct TaskWaker {
     task_id: TaskId,
@@ -20,6 +21,7 @@ impl TaskWaker {
 
 impl Wake for TaskWaker {
     fn wake(self: Arc<Self>) {
+        serial_println!("Wake. task_id: {:?}", self.task_id);
         let mut guard: MutexGuard<VecDeque<TaskId>> = self.task_id_queue.lock();
         guard.push_back(self.task_id);
     }

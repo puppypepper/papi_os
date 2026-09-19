@@ -10,7 +10,7 @@ pub mod waker;
 
 static TASK_ID: AtomicU64 = AtomicU64::new(1);
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 pub struct TaskId(u64);
 
 pub struct Task {
@@ -32,13 +32,37 @@ impl Task {
     }
 }
 
-pub async fn sample_async_task() {
-    serial_println!("START: This is sample async task");
+pub async fn sample_async_task1() {
+    serial_println!("START: task1");
     sample_async_task2().await;
-    serial_println!("END: This is sample async task");
+    serial_println!("END: task1");
 }
 
 pub async fn sample_async_task2() {
-    serial_println!("START: This is sample async task2");
-    serial_println!("END: This is sample async task2");
+    serial_println!("START: task2");
+    SampleYield(2).await;
+    serial_println!("END: task2");
+}
+
+pub async fn sample_async_task3() {
+    serial_println!("START: task3");
+    sample_async_task4().await;
+    serial_println!("END: task3");
+}
+
+pub async fn sample_async_task4() {
+    serial_println!("START: task4");
+    serial_println!("END: task4");
+}
+
+pub struct SampleYield(u32);
+
+impl Future for SampleYield {
+    type Output = ();
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.0 == 0 { return Poll::Ready(()) }
+        self.0 -= 1;
+        cx.waker().wake_by_ref();
+        Poll::Pending
+    }
 }
