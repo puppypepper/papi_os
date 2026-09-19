@@ -10,12 +10,12 @@ use crate::arch::x86_64::interrupts::init_idt;
 use crate::arch::x86_64::pci::scan_pci_bus;
 use crate::arch::x86_64::pic::init_pics;
 use crate::memory::{init_heap, BootInfoFrameAllocator, PageMapper, PhysicalMemoryOffest};
-use crate::task::executor::simple_executor::SimpleExecutor;
 use crate::task::{sample_async_task, Task};
 use alloc::boxed::Box;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use x86_64::structures::paging::FrameAllocator;
+use crate::task::executor::btree_map_executor::BTreeMapExecutor;
 
 // `entry_point!` generates the `_start` symbol with the ABI expected by the
 // bootloader and passes startup information as `&'static BootInfo`.
@@ -100,7 +100,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     //     asm!("int3");
     // }
 
-    let mut executor = SimpleExecutor::new();
+    let mut executor = BTreeMapExecutor::new();
     let task = Task::new(sample_async_task());
     executor.spawn_task(task);
     executor.run();

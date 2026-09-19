@@ -5,6 +5,7 @@ use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use core::task::{Context, Poll, Waker};
 use spin::Mutex;
+use x86_64::instructions::interrupts::{disable, enable, enable_and_hlt};
 
 pub struct BTreeMapExecutor {
     tasks: BTreeMap<TaskId, Task>,
@@ -45,6 +46,13 @@ impl BTreeMapExecutor {
     }
 
     fn sleep_if_idle(&self) {
-        todo!()
+        disable();
+        let task_id_queue_guard = self.task_id_queue.lock();
+        if task_id_queue_guard.is_empty() {
+            drop(task_id_queue_guard);
+            enable_and_hlt();
+        } else {
+            enable();
+        }
     }
 }

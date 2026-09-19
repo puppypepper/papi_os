@@ -33,5 +33,12 @@ impl Task {
 }
 
 pub async fn sample_async_task() {
-    serial_println!("This is sample async task");
+    serial_println!("START: This is sample async task");
+    sample_async_task2().await;
+    serial_println!("END: This is sample async task");
+}
+
+pub async fn sample_async_task2() {
+    serial_println!("START: This is sample async task2");
+    serial_println!("END: This is sample async task2");
 }
