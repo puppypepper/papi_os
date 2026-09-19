@@ -60,7 +60,9 @@ pub struct SampleYield(u32);
 impl Future for SampleYield {
     type Output = ();
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.0 == 0 { return Poll::Ready(()) }
+        if self.0 == 0 {
+            return Poll::Ready(());
+        }
         self.0 -= 1;
         cx.waker().wake_by_ref();
         Poll::Pending

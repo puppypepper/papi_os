@@ -1,9 +1,9 @@
+use crate::serial_println;
 use crate::task::TaskId;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::task::Wake;
 use spin::{Mutex, MutexGuard};
-use crate::serial_println;
 
 pub struct TaskWaker {
     task_id: TaskId,
