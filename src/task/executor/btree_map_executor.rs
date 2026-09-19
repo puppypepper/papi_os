@@ -2,8 +2,9 @@ use crate::serial_println;
 use crate::task::{dummy_waker, Task, TaskId};
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
-use core::task::{Context, Poll};
+use core::task::{Context, Poll, Waker};
 use spin::Mutex;
+use crate::task::waker::task_waker::TaskWaker;
 
 pub struct BTreeMapExecutor {
     tasks: BTreeMap<TaskId, Task>,
@@ -26,7 +27,8 @@ impl BTreeMapExecutor {
     pub fn run(&mut self) {
         while let Some(task_id) = self.task_id_queue.lock().pop_front() {
             if let Some(mut task) = self.tasks.remove(&task_id) {
-                let waker = dummy_waker();
+                let task_waker = TaskWaker::new(task.id, self.task_id_queue.clone());
+                let waker = Waker::from(Arc::new(task_waker));
                 let mut ctx = Context::from_waker(&waker);
                 match task.poll(&mut ctx) {
                     Poll::Ready(()) => {}

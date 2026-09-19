@@ -2,11 +2,21 @@ use crate::task::{Task, TaskId};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::task::Wake;
+use core::task::Waker;
 use spin::{Mutex, MutexGuard};
 
-struct TaskWaker {
+pub struct TaskWaker {
     task_id: TaskId,
     task_id_queue: Arc<Mutex<VecDeque<TaskId>>>,
+}
+
+impl TaskWaker {
+    pub fn new(task_id: TaskId, task_id_queue: Arc<Mutex<VecDeque<TaskId>>>) -> Self {
+        TaskWaker {
+            task_id,
+            task_id_queue,
+        }
+    }
 }
 
 impl Wake for TaskWaker {
