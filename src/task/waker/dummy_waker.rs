@@ -1,6 +1,7 @@
 use core::task::{RawWaker, RawWakerVTable, Waker};
 
-static VTABLE: RawWakerVTable = RawWakerVTable::new(dummy_raw_waker, wake, wake_by_ref, core::mem::drop);
+static VTABLE: RawWakerVTable =
+    RawWakerVTable::new(dummy_raw_waker, wake, wake_by_ref, core::mem::drop);
 
 unsafe fn dummy_raw_waker(_: *const ()) -> RawWaker {
     RawWaker::new(core::ptr::null(), &VTABLE)
