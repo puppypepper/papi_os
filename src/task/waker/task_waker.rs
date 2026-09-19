@@ -1,8 +1,7 @@
-use crate::task::{Task, TaskId};
+use crate::task::TaskId;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::task::Wake;
-use core::task::Waker;
 use spin::{Mutex, MutexGuard};
 
 pub struct TaskWaker {

@@ -1,5 +1,5 @@
 use crate::serial_println;
-use crate::task::{dummy_waker, Task, TaskId};
+use crate::task::{Task, TaskId};
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use core::task::{Context, Poll, Waker};
