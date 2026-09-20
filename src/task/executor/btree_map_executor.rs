@@ -7,6 +7,8 @@ use core::task::{Context, Poll, Waker};
 use spin::Mutex;
 use x86_64::instructions::interrupts::{disable, enable, enable_and_hlt};
 
+// Store and decide async tasks to be executed.
+// It is passed
 pub struct BTreeMapExecutor {
     tasks: BTreeMap<TaskId, Task>,
     task_id_queue: Arc<Mutex<VecDeque<TaskId>>>,
@@ -50,6 +52,8 @@ impl BTreeMapExecutor {
     }
 
     fn sleep_if_idle(&self) {
+        // Prevent inconsistency occuring between async task empty state and hlt.
+        // Avoiding the situation that there are async tasks to be executed but CPU halts.
         disable();
         let task_id_queue_guard = self.task_id_queue.lock();
         if task_id_queue_guard.is_empty() {

@@ -13,6 +13,7 @@ static TASK_ID: AtomicU64 = AtomicU64::new(1);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 pub struct TaskId(u64);
 
+// Task itself, identifier and procedures.
 pub struct Task {
     id: TaskId,
     future: Pin<Box<dyn Future<Output = ()>>>,

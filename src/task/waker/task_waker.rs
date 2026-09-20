@@ -5,6 +5,8 @@ use alloc::sync::Arc;
 use alloc::task::Wake;
 use spin::{Mutex, MutexGuard};
 
+// When called, register the task to be called again by executor
+// It is passed to future context wrapped by Context
 pub struct TaskWaker {
     task_id: TaskId,
     task_id_queue: Arc<Mutex<VecDeque<TaskId>>>,
