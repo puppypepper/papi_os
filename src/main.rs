@@ -10,6 +10,8 @@ use crate::arch::x86_64::interrupts::init_idt;
 use crate::arch::x86_64::pci::scan_pci_bus;
 use crate::arch::x86_64::pic::init_pics;
 use crate::memory::{init_heap, BootInfoFrameAllocator, PageMapper, PhysicalMemoryOffest};
+use crate::task::executor::btree_map_executor::BTreeMapExecutor;
+use crate::task::{sample_async_task1, sample_async_task3, Task};
 use alloc::boxed::Box;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
@@ -98,6 +100,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     //     asm!("int3");
     // }
 
+    let mut executor = BTreeMapExecutor::new();
+    let task1 = Task::new(sample_async_task1());
+    let task3 = Task::new(sample_async_task3());
+    executor.spawn_task(task1);
+    executor.spawn_task(task3);
+    executor.run();
+
     hlt_loop()
 }
 
@@ -114,4 +123,5 @@ fn panic(info: &PanicInfo) -> ! {
 mod arch;
 mod memory;
 mod serial;
+mod task;
 mod vga_buffer;
