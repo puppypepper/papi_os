@@ -61,10 +61,12 @@ impl Future for SampleYield {
     type Output = ();
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.0 == 0 {
+            serial_println!("ready: {:?}", self.0);
             return Poll::Ready(());
         }
         self.0 -= 1;
         cx.waker().wake_by_ref();
+        serial_println!("pending: {:?}", self.0);
         Poll::Pending
     }
 }

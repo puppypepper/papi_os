@@ -21,6 +21,7 @@ impl BTreeMapExecutor {
     }
 
     pub fn spawn_task(&mut self, task: Task) {
+        serial_println!("Spawn. task_id: {:?}", task.id);
         self.task_id_queue.lock().push_back(task.id);
         self.tasks.insert(task.id, task);
     }
