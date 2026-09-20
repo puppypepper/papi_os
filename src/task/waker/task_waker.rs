@@ -5,8 +5,12 @@ use alloc::sync::Arc;
 use alloc::task::Wake;
 use spin::{Mutex, MutexGuard};
 
-// When called, register the task to be called again by executor
-// It is passed to future context wrapped by Context
+// The callback a suspended task uses to say "poll me again". Built fresh
+// per poll in `BTreeMapExecutor::run()`, converted into a real `Waker` via
+// the `Wake` blanket impl, and handed to the future through `Context`. When
+// something calls `.wake()` on it, `task_id` is pushed back onto the shared
+// `task_id_queue` - it's `run()`'s loop that actually reacts to that push
+// by polling the task again, `TaskWaker` itself never polls anything.
 pub struct TaskWaker {
     task_id: TaskId,
     task_id_queue: Arc<Mutex<VecDeque<TaskId>>>,
