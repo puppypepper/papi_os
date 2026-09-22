@@ -29,6 +29,15 @@ lazy_static! {
     };
 }
 
+/// It builds and loads the IDT — Interrupt Descriptor Table — the table the CPU consults whenever any interrupt or exception fires, mapping a vector number (0–255) to the address of the handler function to jump to.
+///
+/// Two different kinds of events land in that same table:
+///
+/// - CPU exceptions, triggered directly by instruction execution, at fixed vector numbers defined by the x86_64 architecture itself:
+/// - breakpoint (vector 3) → breakpoint_handler, just logs and returns.
+/// - page_fault (vector 14) → page_fault_handler, reads the faulting address from the CR2 register and halts.
+/// - double_fault (vector 8) → double_fault_handler — and this is the one wired to DOUBLE_FAULT_IST_INDEX via .set_stack_index(...) (interrupts.rs:20), which is exactly the GDT/TSS dependency from a moment ago: this line is why init_gdt() had to run first.
+/// - Hardware IRQs, forwarded by the PIC once it's initialized, at vectors the code chose via InterruptIndex in pic.rs: Timer at vector 32, Keyboard at vector 33 (PIC1_OFFSET = 32, so IRQ0 → 32, IRQ1 → 33).
 pub fn init_idt() {
     // Load the IDT pointer into the IDTR register.
     IDT.load();

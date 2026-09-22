@@ -69,6 +69,10 @@ lazy_static! {
     };
 }
 
+/// What the GDT is: the Global Descriptor Table is a legacy x86 structure that defines memory segments — on older x86 this was how you built a whole memory model (base address + limit + permissions per segment). On x86_64 in long mode, segmentation is mostly vestigial: the CPU runs a flat memory model and ignores most base/limit fields. But the GDT is still mandatory infrastructure for two things that survived into 64-bit mode:
+///
+/// 1. The code segment descriptor — CS must point at a GDT entry that tells the CPU "this is 64-bit kernel code, ring 0." The bootloader already set some CS value, but the kernel builds and loads its own GDT (gdt.rs:63 GDT.0.load(), then CS::set_reg(...)) rather than trusting bootloader-owned descriptor state it doesn't control.
+/// 2. The TSS descriptor — the Task State Segment is only reachable through a GDT entry, loaded into the Task Register via the ltr instruction. And the TSS is what carries the IST (Interrupt Stack Table): up to 7 alternate stack pointers the CPU can auto-switch to when delivering specific exceptions.
 pub fn init_gdt() {
     use x86_64::instructions::segmentation::Segment;
 
