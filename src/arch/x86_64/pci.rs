@@ -1,5 +1,5 @@
-use alloc::vec::Vec;
 use crate::serial_println;
+use alloc::vec::Vec;
 use x86_64::instructions::port::Port;
 
 const MAX_BUS: u8 = 255;
