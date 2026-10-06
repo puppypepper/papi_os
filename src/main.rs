@@ -70,7 +70,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let network_device_option: Option<&PciDeviceConfig> =
         pci_device_configs.iter().find(|x| x.class == 0x02);
     match network_device_option {
-        Some(_network_device_option) => {}
+        Some(network_device_option) => {
+            let nic_bar0: u32 = network_device_option.read_bar0();
+            serial_println!("NIC BAR0: {:#010x}", nic_bar0);
+        }
         None => {
             serial_println!("No network device found.");
         }

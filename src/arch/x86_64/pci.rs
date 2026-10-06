@@ -16,9 +16,16 @@ pub struct PciDeviceConfig {
     pub class: u8,
     subclass: u8,
     header_type: u8,
-    // bus: u8,
-    // device: u8,
-    // func: u8,
+    pub bus: u8,
+    pub device: u8,
+    pub func: u8,
+}
+
+impl PciDeviceConfig {
+    pub fn read_bar0(&self) -> u32 {
+        // `0x10` is the byte offset of BAR0, it is defined by the PCI spec.
+        read_config(self.bus, self.device, self.func, 0x10)
+    }
 }
 
 pub fn scan_pci_bus() -> Vec<PciDeviceConfig> {
@@ -47,6 +54,9 @@ pub fn scan_pci_bus() -> Vec<PciDeviceConfig> {
                     class,
                     subclass,
                     header_type,
+                    bus,
+                    device,
+                    func,
                 };
                 pci_device_configs.push(config);
 
