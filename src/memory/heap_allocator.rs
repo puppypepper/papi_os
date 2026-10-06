@@ -22,7 +22,7 @@ const HEAP_START: u64 = 0x_0000_5555_0000_0000;
 const HEAP_BYTE_SIZE: usize = 100 * 1024; // 100KiB
 
 pub fn init_heap(frame_allocator: &mut BootInfoFrameAllocator, page_mapper: &mut PageMapper) {
-    // The heap allocator expets one contiguous virtual range that it can treat
+    // The heap allocator expects one contiguous virtual range that it can treat
     // as its arena. So first we make every 4KiB page in that range valid by
     // mapping it to a fresh physical frame.
     let mut virt_addr_raw: u64 = HEAP_START;

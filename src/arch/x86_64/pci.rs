@@ -1,4 +1,5 @@
 use crate::serial_println;
+use alloc::vec::Vec;
 use x86_64::instructions::port::Port;
 
 const MAX_BUS: u8 = 255;
@@ -9,15 +10,26 @@ const CONFIG_ADDRESS: u16 = 0x0CF8;
 const CONFIG_DATA: u16 = 0x0CFC;
 
 #[allow(dead_code)]
-struct PciDeviceConfig {
+pub struct PciDeviceConfig {
     vendor_id: u16,
     device_id: u16,
-    class: u8,
+    pub class: u8,
     subclass: u8,
     header_type: u8,
+    pub bus: u8,
+    pub device: u8,
+    pub func: u8,
 }
 
-pub fn scan_pci_bus() {
+impl PciDeviceConfig {
+    pub fn read_bar0(&self) -> u32 {
+        // `0x10` is the byte offset of BAR0, it is defined by the PCI spec.
+        read_config(self.bus, self.device, self.func, 0x10)
+    }
+}
+
+pub fn scan_pci_bus() -> Vec<PciDeviceConfig> {
+    let mut pci_device_configs: Vec<PciDeviceConfig> = Vec::new();
     for bus in 0..=MAX_BUS {
         for device in 0..=MAX_DEVICE {
             for func in 0..=MAX_FUNC {
@@ -36,13 +48,17 @@ pub fn scan_pci_bus() {
                 let data_c: u32 = read_config(bus, device, func, 0x0c);
                 let header_type: u8 = (data_c >> 16 & 0x00FF) as u8;
 
-                let _config = PciDeviceConfig {
+                let config = PciDeviceConfig {
                     vendor_id,
                     device_id,
                     class,
                     subclass,
                     header_type,
+                    bus,
+                    device,
+                    func,
                 };
+                pci_device_configs.push(config);
 
                 serial_println!(
     "[PCI] {:02x}:{:02x}.{} vendor={:#06x} device={:#06x} class={:#04x} sub={:#04x}",
@@ -51,6 +67,7 @@ pub fn scan_pci_bus() {
             }
         }
     }
+    pci_device_configs
 }
 
 fn read_config(bus: u8, device: u8, func: u8, offset: u8) -> u32 {
