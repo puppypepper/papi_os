@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boot Datasheet</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<style>
+  /*
+    Layout concept: one persistent datasheet "stage" (CPU — RAM address
+    map — MMIO windows — devices bus) that a 14-step index drives via
+    data-state attributes; a sidebar and prev/next step through it.
+  */
+  :root{
+    --bg:#ECE7D6;
+    --surface:#F6F3E7;
+    --ink:#211D14;
+    --ink-muted:#6B6650;
+    --line:#C7BFA0;
+    --accent:#A23324;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#15130D; --surface:#1E1B12; --ink:#ECE6D3; --ink-muted:#9A947C;
+      --line:#3A3526; --accent:#E2654A; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#15130D; --surface:#1E1B12; --ink:#ECE6D3; --ink-muted:#9A947C;
+    --line:#3A3526; --accent:#E2654A; color-scheme: dark;
+  }
+
+  *{ box-sizing: border-box; }
+  body{ margin:0; background: var(--bg); color: var(--ink); font-family:'Spectral', Georgia, serif; }
+  .page{ max-width: 76rem; margin: 0 auto; padding-inline: 20px; padding-block: 24px 56px; }
+  .mono{ font-family:'JetBrains Mono','SFMono-Regular',Consolas,monospace; }
+  .docbar{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 20px; font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-muted); border-bottom:1px solid var(--line); padding-bottom:10px; }
+  header.title-block{ padding-block:20px 10px; border-bottom:2px solid var(--ink); }
+  .kicker{ font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); font-family:'JetBrains Mono',monospace; font-weight:600; }
+  h1{ font-size:clamp(1.6rem,4vw,2.2rem); font-weight:600; margin:.3em 0 .2em; text-wrap:balance; }
+  .dek{ max-width:68ch; color:var(--ink-muted); font-size:.95rem; line-height:1.55; margin:0; }
+
+  .board{ display:grid; grid-template-columns: 200px 1fr; gap:20px; margin-top:22px; align-items:start; }
+  @media (max-width:760px){ .board{ grid-template-columns:1fr; } }
+
+  nav.steplist{ display:flex; flex-direction:column; gap:3px; background:var(--surface); border:1px solid var(--line); border-radius:2px; padding:8px; }
+  nav.steplist button{ all:unset; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:.72rem; padding:7px 9px; border-radius:2px; color:var(--ink-muted); line-height:1.3; }
+  nav.steplist button .n{ opacity:.6; margin-right:6px; }
+  nav.steplist button[aria-current="step"]{ background:var(--accent); color:var(--bg); font-weight:600; }
+  nav.steplist button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  nav.steplist button:hover:not([aria-current="step"]){ background:var(--line); color:var(--ink); }
+
+  .stage-wrap{ overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:2px; padding:10px; }
+  .stage-wrap svg{ display:block; width:980px; max-width:none; height:auto; color:var(--ink); }
+
+  .part{ transition: opacity .35s ease, color .35s ease; }
+  .part[data-state="hidden"]{ opacity:0; }
+  .part[data-state="ghost"]{ opacity:.55; color:var(--ink-muted); }
+  .part[data-state="ghost"] .ghostline{ stroke-dasharray:3 3; }
+  .part[data-state="dim"]{ opacity:.65; color:var(--ink-muted); }
+  .part[data-state="active"]{ opacity:1; color:var(--accent); }
+  .cpu-use{ color:var(--ink-muted); }
+  .block{ opacity:0; transition: opacity .3s ease; transition-delay: calc(var(--i,0) * 16ms); }
+  .block[data-filled="1"]{ opacity:1; }
+  #arrow-layer path{ fill:none; stroke:var(--accent); stroke-width:1.2; transition:opacity .3s ease; }
+  #arrow-layer path.dashed{ stroke-dasharray:4 3; }
+  #arrow-layer text{ font-family:'JetBrains Mono',monospace; font-size:8px; fill:var(--ink); }
+  #halt-badge{ opacity:0; transition:opacity .3s ease; }
+  #halt-badge[data-on="1"]{ opacity:1; }
+  @media (prefers-reduced-motion: reduce){
+    .part, .block, #arrow-layer path, #halt-badge{ transition:none !important; }
+  }
+
+  .caption-panel{ margin-top:18px; border-top:1px solid var(--line); padding-top:16px; display:grid; grid-template-columns:1fr auto; gap:14px 24px; align-items:start; }
+  @media (max-width:640px){ .caption-panel{ grid-template-columns:1fr; } }
+  .step-head{ display:flex; align-items:baseline; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .step-no{ font-family:'JetBrains Mono',monospace; font-size:.75rem; color:var(--ink-muted); }
+  .step-fn{ font-family:'JetBrains Mono',monospace; font-weight:600; font-size:1.1rem; }
+  .caption{ font-size:.95rem; line-height:1.6; max-width:62ch; margin:0; }
+  .controls{ display:flex; align-items:center; gap:10px; }
+  .controls button{ font-family:'JetBrains Mono',monospace; font-size:.78rem; background:var(--ink); color:var(--bg); border:none; padding:8px 14px; border-radius:2px; cursor:pointer; }
+  .controls button:disabled{ opacity:.35; cursor:default; }
+  .controls button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .counter{ font-family:'JetBrains Mono',monospace; font-size:.72rem; color:var(--ink-muted); white-space:nowrap; }
+
+  /* Invisible hit areas laid over each register row of the CPU symbol.
+     The rows live inside <symbol>/<use>, whose shadow tree can't be targeted
+     per row, so hover/focus is handled by these overlay rects instead. */
+  #reg-hits rect{ fill:transparent; stroke:transparent; stroke-width:1.4; pointer-events:all; cursor:help; }
+  #reg-hits rect:hover, #reg-hits rect:focus-visible, #reg-hits rect[data-open="1"]{ stroke:var(--accent); outline:none; }
+
+  .reg-tip{ position:fixed; z-index:10; width:min(340px, calc(100vw - 32px)); background:var(--surface); color:var(--ink); border:1px solid var(--ink); border-radius:2px; padding:10px 12px 11px; box-shadow:0 6px 18px rgb(0 0 0 / .18); font-size:.82rem; line-height:1.5; pointer-events:none; }
+  .reg-tip[hidden]{ display:none; }
+  .reg-tip .rt-name{ font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--accent); }
+  .reg-tip .rt-full{ font-family:'JetBrains Mono',monospace; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); margin-left:6px; }
+  .reg-tip p{ margin:.45em 0 0; }
+  .reg-tip .rt-label{ font-family:'JetBrains Mono',monospace; font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-muted); display:block; margin-top:.6em; }
+  .reg-tip code{ font-family:'JetBrains Mono',monospace; font-size:.92em; }
+
+  .panic-inset{ margin-top:14px; border:1px solid var(--accent); border-radius:2px; padding:10px 12px; font-size:.82rem; line-height:1.5; background:var(--surface); }
+  .panic-inset b{ color:var(--accent); }
+
+  footer{ margin-top:22px; padding-top:14px; border-top:1px solid var(--line); font-family:'JetBrains Mono',monospace; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-muted); }
+</style>
+</head>
+<body>
+
+<!-- shared CPU register-grid symbol -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent)"></path>
+    </marker>
+    <symbol id="s-cpu" viewBox="0 0 96 136" overflow="visible">
+      <rect x="2" y="2" width="92" height="130" fill="none" stroke="currentColor" stroke-width="1.3"></rect>
+      <text x="48" y="9.5" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="5.5" letter-spacing=".06em" fill="currentColor" opacity=".6">CPU — REGISTERS</text>
+      <g style="color:var(--c-gdtr, var(--ink-muted))"><rect x="6" y="13" width="84" height="10" fill="none" stroke="currentColor" stroke-width="1"></rect><text x="10" y="20.5" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">GDTR</text></g>
+      <g style="color:var(--c-idtr, var(--ink-muted))"><rect x="6" y="25" width="84" height="10" fill="none" stroke="currentColor" stroke-width="1"></rect><text x="10" y="32.5" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">IDTR</text></g>
+      <g style="color:var(--c-tr, var(--ink-muted))"><rect x="6" y="37" width="84" height="10" fill="none" stroke="currentColor" stroke-width="1"></rect><text x="10" y="44.5" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">TR</text></g>
+      <g style="color:var(--c-cs, var(--ink-muted))"><rect x="6" y="49" width="84" height="10" fill="none" stroke="currentColor" stroke-width="1"></rect><text x="10" y="56.5" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">CS</text></g>
+      <g style="color:var(--c-cr3, var(--ink-muted))"><rect x="6" y="61" width="84" height="10" fill="none" stroke="currentColor" stroke-width="1"></rect><text x="10" y="68.5" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">CR3</text></g>
+      <g style="color:var(--c-cr2, var(--ink-muted))"><rect x="6" y="73" width="84" height="10" fill="none" stroke="currentColor" stroke-width="1"></rect><text x="10" y="80.5" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">CR2</text></g>
+      <g style="color:var(--c-rflags, var(--ink-muted))"><rect x="6" y="85" width="84" height="10" fill="none" stroke="currentColor" stroke-width="1"></rect><text x="10" y="92.5" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">RFLAGS.IF</text></g>
+      <g style="color:var(--c-rsp, var(--ink-muted))"><rect x="6" y="97" width="84" height="10" fill="none" stroke="currentColor" stroke-width="1"></rect><text x="10" y="104.5" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">RSP</text></g>
+      <line x1="6" y1="113" x2="90" y2="113" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2" opacity=".5"></line>
+      <g style="color:var(--c-al, var(--ink-muted))">
+        <rect x="6" y="117" width="84" height="12" fill="none" stroke="currentColor" stroke-width="1"></rect>
+        <text x="10" y="125.5" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">AL</text>
+        <text x="86" y="125.5" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="5" fill="currentColor" opacity=".7">general purpose</text>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <div class="docbar">
+    <span>papi_os · boot sequence</span>
+    <span>doc papi-os-boot · rev 2026.10 · preliminary</span>
+  </div>
+
+  <header class="title-block">
+    <div class="kicker">Reference manual</div>
+    <h1>Boot Datasheet</h1>
+    <p class="dek">Electrical and sequencing behavior of <code class="mono">kernel_main</code> across all 14 boot steps. Step through to see which register, memory region, and device is active, and what travels between them. Hover or tap any CPU register to see what it holds and where papi_os touches it.</p>
+  </header>
+
+  <div class="board">
+    <nav class="steplist" id="steplist" aria-label="Boot steps"></nav>
+
+    <div>
+      <div class="stage-wrap">
+        <svg id="stage" viewBox="0 0 980 620" role="img" aria-label="System stage showing CPU registers, RAM address map, MMIO windows, and a device bus, with the current boot step's active parts highlighted.">
+
+          <!-- board backdrop -->
+          <rect x="6" y="6" width="968" height="608" rx="6" fill="none" stroke="currentColor" stroke-width="1" opacity=".18"></rect>
+          <text x="16" y="614" font-family="JetBrains Mono, monospace" font-size="7" letter-spacing=".08em" fill="currentColor" opacity=".35">SYSTEM BOARD</text>
+
+          <!-- CPU -->
+          <use href="#s-cpu" id="cpu-use" x="24" y="170" width="190" height="270" class="cpu-use"></use>
+          <g id="halt-badge" data-on="0">
+            <rect x="24" y="446" width="190" height="20" fill="none" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 2"></rect>
+            <text x="119" y="459.5" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7" fill="var(--accent)">HALTED — next IRQ wakes this</text>
+          </g>
+
+          <!-- RAM frame -->
+          <rect x="250" y="24" width="330" height="560" fill="none" stroke="currentColor" stroke-width="1" opacity=".5"></rect>
+          <text x="262" y="40" font-family="JetBrains Mono, monospace" font-size="7.5" letter-spacing=".08em" fill="currentColor" opacity=".7">RAM — KERNEL ADDRESS SPACE</text>
+
+          <g class="part" data-id="ram-gdtTss" data-state="hidden">
+            <rect class="ghostline" x="262" y="50" width="306" height="46" fill="none" stroke="currentColor" stroke-width="1"></rect>
+            <text x="268" y="64" font-family="JetBrains Mono, monospace" font-size="7.5" fill="currentColor">GDT + TSS</text>
+            <text x="268" y="76" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".8">incl. IST0 double-fault stack · 20 KiB</text>
+            <text x="268" y="88" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".6">static · lazy_static</text>
+          </g>
+
+          <g class="part" data-id="ram-idt" data-state="hidden">
+            <rect class="ghostline" x="262" y="102" width="306" height="34" fill="none" stroke="currentColor" stroke-width="1"></rect>
+            <text x="268" y="116" font-family="JetBrains Mono, monospace" font-size="7.5" fill="currentColor">IDT</text>
+            <text x="268" y="128" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">static · lazy_static</text>
+          </g>
+
+          <g class="part" data-id="ram-bootinfo" data-state="hidden">
+            <rect class="ghostline" x="262" y="140" width="306" height="34" fill="none" stroke="currentColor" stroke-width="1"></rect>
+            <text x="268" y="154" font-family="JetBrains Mono, monospace" font-size="7.5" fill="currentColor">BootInfo</text>
+            <text x="268" y="166" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">allocated by the bootloader, passed in</text>
+          </g>
+
+          <g class="part" data-id="ram-memmap" data-state="hidden">
+            <rect class="ghostline" x="262" y="178" width="306" height="50" fill="none" stroke="currentColor" stroke-width="1"></rect>
+            <text x="268" y="192" font-family="JetBrains Mono, monospace" font-size="7.5" fill="currentColor">Physical memory map</text>
+            <text x="268" y="203" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">Usable / Reserved regions — addresses vary per run</text>
+            <g class="part" data-id="ram-memmapUsable" data-state="hidden">
+              <rect class="ghostline" x="272" y="208" width="286" height="16" fill="none" stroke="currentColor" stroke-width="1"></rect>
+              <text x="278" y="219.5" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">Usable frames pool (4 KiB each)</text>
+            </g>
+          </g>
+
+          <g class="part" data-id="ram-offsetband" data-state="hidden">
+            <rect class="ghostline" x="262" y="232" width="306" height="96" fill="none" stroke="currentColor" stroke-width="1"></rect>
+            <text x="268" y="246" font-family="JetBrains Mono, monospace" font-size="7.5" fill="currentColor">physical_memory_offset band</text>
+            <text x="268" y="257" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">all of physical RAM, remapped — offset varies per run</text>
+            <g class="part" data-id="ram-pagetables" data-state="hidden">
+              <rect class="ghostline" x="272" y="266" width="286" height="50" fill="none" stroke="currentColor" stroke-width="1"></rect>
+              <text x="278" y="280" font-family="JetBrains Mono, monospace" font-size="6.5" fill="currentColor">Page tables (active L4)</text>
+              <text x="278" y="291" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">found via CR3, never written here</text>
+            </g>
+          </g>
+
+          <g class="part" data-id="ram-heap" data-state="hidden">
+            <rect class="ghostline" x="262" y="332" width="306" height="180" fill="none" stroke="currentColor" stroke-width="1"></rect>
+            <text x="268" y="346" font-family="JetBrains Mono, monospace" font-size="7.5" fill="currentColor">Heap · 0x0000_5555_0000_0000 · 100 KiB</text>
+            <g class="part" data-id="ram-vecPci" data-state="hidden">
+              <rect class="ghostline" x="272" y="352" width="286" height="15" fill="none" stroke="currentColor" stroke-width="1"></rect>
+              <text x="278" y="362.5" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">Vec&lt;PciDeviceConfig&gt;</text>
+            </g>
+            <g id="heap-grid"></g>
+            <g class="part" data-id="ram-boxTick" data-state="hidden">
+              <rect class="ghostline" x="272" y="469" width="90" height="14" fill="none" stroke="currentColor" stroke-width="1"></rect>
+              <text x="278" y="479" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">+1 Box</text>
+            </g>
+            <g class="part" data-id="ram-taskQueue" data-state="hidden">
+              <rect class="ghostline" x="368" y="469" width="190" height="14" fill="none" stroke="currentColor" stroke-width="1"></rect>
+              <text x="374" y="479" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">executor task queue</text>
+            </g>
+            <text x="268" y="505" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".6">25 × 4 KiB frames</text>
+          </g>
+
+          <g class="part" data-id="ram-demopage" data-state="hidden">
+            <rect class="ghostline" x="262" y="516" width="306" height="40" fill="none" stroke="currentColor" stroke-width="1"></rect>
+            <text x="268" y="530" font-family="JetBrains Mono, monospace" font-size="7.5" fill="currentColor">Demo page · 0x4444_4444_0000</text>
+            <text x="268" y="542" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">1 page · u64 0xf021f077f065f04e</text>
+          </g>
+
+          <!-- MMIO frame -->
+          <rect x="610" y="24" width="160" height="210" fill="none" stroke="currentColor" stroke-width="1" opacity=".5" stroke-dasharray="3 3"></rect>
+          <text x="618" y="40" font-family="JetBrains Mono, monospace" font-size="7" letter-spacing=".06em" fill="currentColor" opacity=".7">MMIO WINDOWS — NOT RAM</text>
+
+          <g class="part" data-id="ram-vga" data-state="hidden">
+            <rect class="ghostline" x="622" y="50" width="136" height="50" fill="none" stroke="currentColor" stroke-width="1"></rect>
+            <text x="628" y="64" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">VGA buffer</text>
+            <text x="628" y="75" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">0xb8000</text>
+            <text x="628" y="86" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">identity-mapped, not via offset</text>
+          </g>
+
+          <g class="part" data-id="ram-nicbar0" data-state="hidden">
+            <rect class="ghostline" x="622" y="110" width="136" height="60" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 2"></rect>
+            <text x="628" y="124" font-family="JetBrains Mono, monospace" font-size="7" fill="currentColor">NIC BAR0</text>
+            <text x="628" y="135" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">0xFEBC0000</text>
+            <text x="628" y="146" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">pending — no</text>
+            <text x="628" y="156" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor" opacity=".7">uncacheable flag yet</text>
+          </g>
+
+          <!-- Devices -->
+          <text x="800" y="16" font-family="JetBrains Mono, monospace" font-size="7" letter-spacing=".08em" fill="currentColor" opacity=".55">DEVICE BUS</text>
+
+          <g class="part" data-id="dev-pic" data-state="dim">
+            <rect x="800" y="30" width="46" height="30" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <line x1="796" y1="37" x2="800" y2="37" stroke="currentColor" stroke-width="1"></line>
+            <line x1="796" y1="52" x2="800" y2="52" stroke="currentColor" stroke-width="1"></line>
+            <line x1="846" y1="37" x2="850" y2="37" stroke="currentColor" stroke-width="1"></line>
+            <line x1="846" y1="52" x2="850" y2="52" stroke="currentColor" stroke-width="1"></line>
+            <text x="823" y="48" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">PIC</text>
+            <text x="800" y="72" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">0x20/0x21 (m)</text>
+            <text x="800" y="82" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">0xA0/0xA1 (s)</text>
+          </g>
+
+          <g class="part" data-id="dev-pci" data-state="dim">
+            <rect x="800" y="121" width="46" height="30" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <line x1="796" y1="128" x2="800" y2="128" stroke="currentColor" stroke-width="1"></line>
+            <line x1="796" y1="143" x2="800" y2="143" stroke="currentColor" stroke-width="1"></line>
+            <line x1="846" y1="128" x2="850" y2="128" stroke="currentColor" stroke-width="1"></line>
+            <line x1="846" y1="143" x2="850" y2="143" stroke="currentColor" stroke-width="1"></line>
+            <text x="823" y="139" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">PCI</text>
+            <text x="800" y="163" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">addr 0xCF8</text>
+            <text x="800" y="173" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">data 0xCFC</text>
+          </g>
+
+          <g class="part" data-id="dev-uart" data-state="dim">
+            <rect x="800" y="212" width="46" height="30" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <line x1="796" y1="219" x2="800" y2="219" stroke="currentColor" stroke-width="1"></line>
+            <line x1="796" y1="234" x2="800" y2="234" stroke="currentColor" stroke-width="1"></line>
+            <line x1="846" y1="227" x2="850" y2="227" stroke="currentColor" stroke-width="1"></line>
+            <text x="823" y="230" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">UART</text>
+            <text x="800" y="254" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">COM1 · 0x3F8</text>
+          </g>
+
+          <g class="part" data-id="dev-kbd" data-state="dim">
+            <rect x="800" y="303" width="46" height="30" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <line x1="796" y1="310" x2="800" y2="310" stroke="currentColor" stroke-width="1"></line>
+            <line x1="796" y1="325" x2="800" y2="325" stroke="currentColor" stroke-width="1"></line>
+            <line x1="846" y1="318" x2="850" y2="318" stroke="currentColor" stroke-width="1"></line>
+            <text x="823" y="321" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">KBD</text>
+            <text x="800" y="345" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">ctrl · 0x60</text>
+          </g>
+
+          <g class="part" data-id="dev-vga" data-state="dim">
+            <rect x="800" y="394" width="46" height="30" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <line x1="796" y1="401" x2="800" y2="401" stroke="currentColor" stroke-width="1"></line>
+            <line x1="796" y1="416" x2="800" y2="416" stroke="currentColor" stroke-width="1"></line>
+            <line x1="846" y1="409" x2="850" y2="409" stroke="currentColor" stroke-width="1"></line>
+            <text x="823" y="412" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">VGA</text>
+            <text x="800" y="436" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">MMIO 0xb8000</text>
+          </g>
+
+          <g class="part" data-id="dev-nic" data-state="ghost">
+            <rect class="ghostline" x="800" y="485" width="46" height="30" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <line x1="796" y1="492" x2="800" y2="492" stroke="currentColor" stroke-width="1"></line>
+            <line x1="796" y1="507" x2="800" y2="507" stroke="currentColor" stroke-width="1"></line>
+            <line x1="846" y1="492" x2="850" y2="492" stroke="currentColor" stroke-width="1"></line>
+            <line x1="846" y1="507" x2="850" y2="507" stroke="currentColor" stroke-width="1"></line>
+            <text x="823" y="503" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">NIC</text>
+            <text id="nic-line1" x="800" y="527" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">PCI 00:03.0</text>
+            <text id="nic-line2" x="800" y="537" font-family="JetBrains Mono, monospace" font-size="6" fill="currentColor">unidentified</text>
+          </g>
+
+          <g id="arrow-layer"></g>
+          <!-- drawn last so register hover targets sit above arrows -->
+          <g id="reg-hits"></g>
+        </svg>
+      </div>
+      <div class="reg-tip" id="reg-tip" role="tooltip" hidden></div>
+
+      <div class="caption-panel">
+        <div>
+          <div class="step-head">
+            <span class="step-no" id="step-no">FIG 1</span>
+            <span class="step-fn" id="step-fn">init_gdt()</span>
+          </div>
+          <p class="caption" id="step-caption"></p>
+          <div class="panic-inset" id="panic-inset" hidden>
+            <b>Every exit halts the same way.</b> <span class="mono">executor.run()</span> returning normally, or a Rust panic anywhere in <span class="mono">kernel_main</span> logging to serial first — both converge on this same <span class="mono">hlt_loop()</span>.
+          </div>
+        </div>
+        <div class="controls">
+          <button id="prev" type="button">← Prev</button>
+          <span class="counter" id="counter">Step 1 / 14</span>
+          <button id="next" type="button">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>papi_os reference series · figures reflect source at time of publication, not a fixed spec</footer>
+</div>
+
+<script>
+(function(){
+  var STEPS = [
+    { fn:'init_gdt()', label:'1 · init_gdt', cpu:['gdtr','cs','tr'],
+      caption:'Loads the GDT into GDTR via lgdt, repoints CS at the kernel’s own code descriptor, and loads the TSS selector into TR via ltr. GDTR only holds a pointer — the table and its dedicated 20 KiB double-fault stack (IST0) live in RAM.',
+      ram:['ram-gdtTss'], arrow:{d:'M202,206 L232,206 L232,73 L260,73', labels:[[206,200,'GDTR →'],[236,90,'GDT+TSS (RAM)']]} },
+    { fn:'init_idt()', label:'2 · init_idt', cpu:['idtr'],
+      caption:'Installs handlers for breakpoint, page fault, double fault (pinned to IST0), timer, and keyboard, then loads IDTR via lidt.',
+      ram:['ram-idt'], devices:['dev-kbd'], arrow:{d:'M202,229 L232,229 L232,119 L260,119', labels:[[206,223,'IDTR →'],[236,136,'IDT (RAM)']]} },
+    { fn:'init_pics()', label:'3 · init_pics', cpu:['al'],
+      caption:'Remaps the two chained 8259 PICs over dedicated I/O ports so IRQ0–15 land on vectors 32–47. Unlike GDTR/IDTR, port I/O has no system register of its own — the byte passes through AL.',
+      devices:['dev-pic'], arrow:{d:'M202,414 L202,600 L800,600 L800,67', labels:[[206,410,'AL: 0x11'],[450,596,'ICW1 → 0x20/0xA0']]} },
+    { fn:'print_memory_map()', label:'4 · print_memory_map', cpu:[],
+      caption:'Walks the physical memory regions the bootloader already classified (Usable/Reserved) from BootInfo, and logs them to serial.',
+      ram:['ram-memmap','ram-bootinfo'] },
+    { fn:'BootInfoFrameAllocator::init()', label:'5 · frame_allocator::init', cpu:[],
+      caption:'Builds an allocator that hands out 4 KiB physical frames from the regions marked Usable.',
+      ram:['ram-memmapUsable'] },
+    { fn:'init_page_mapper()', label:'6 · init_page_mapper', cpu:['cr3'],
+      caption:'Cr3::read() reads the physical frame of the active level-4 page table — only a read, never a write. The bootloader already pointed CR3 there before kernel_main started.',
+      ram:['ram-offsetband','ram-pagetables'], arrow:{d:'M260,280 L232,280 L232,303 L204,303', labels:[[236,276,'already set by'],[236,290,'bootloader'],[150,308,'CR3 (read only)']]} },
+    { fn:'init_heap()', label:'7 · init_heap', cpu:[],
+      caption:'Maps the heap’s fixed virtual range (0x0000_5555_0000_0000, 100 KiB = 25 × 4 KiB frames) one page at a time, then hands it to the global allocator. Box and Vec only work after this returns.',
+      ram:['ram-heap'], fillHeap:true },
+    { fn:'interrupts::enable()', label:'8 · interrupts::enable', cpu:['rflags'],
+      caption:'Sets RFLAGS.IF via sti — deliberately last, only once GDT, IDT, and PIC are all ready. Armed, but nothing has fired yet.',
+      arrow:{d:'M202,348 L202,604 L804,604 L804,67', dashed:true, labels:[[206,344,'armed,'],[450,598,'nothing fired yet']]} },
+    { fn:'scan_pci_bus()', label:'9 · scan_pci_bus', cpu:['al'],
+      caption:'Walks all 256×32×8 bus/device/function slots via ports 0xCF8/0xCFC, now collecting into a Vec<PciDeviceConfig> instead of only logging.',
+      devices:['dev-pci'], arrow:{d:'M202,414 L202,600 L800,600 L800,158', labels:[[206,410,'AL · addr→0xCF8'],[450,596,'data←0xCFC']]} },
+    { fn:'find(|x| x.class == 0x02)', label:'10 · find NIC', cpu:[],
+      caption:'Filters the collected Vec for the network controller: Intel 8086:100e (QEMU’s emulated e1000) at 00:03.0.',
+      ram:['ram-vecPci'], devices:['dev-pci','dev-nic'], nicIdentified:true,
+      arrow:{d:'M568,352 L684,352 L684,527 L798,527', labels:[[572,346,'find class==0x02'],[690,520,'→ 8086:100e @ 00:03.0']]} },
+    { fn:'read_bar0()', label:'11 · read_bar0', cpu:['al'],
+      caption:'Reads PCI config offset 0x10: raw value 0x00000000febc0000 → memory-mapped, 32-bit, base 0xFEBC0000. Still unmapped — page_mapper.map_page() doesn’t yet set an uncacheable flag, so this stays pending.',
+      ram:['ram-nicbar0'], devices:['dev-nic'],
+      arrow:{d:'M798,527 L684,527 L684,140 L760,140', labels:[[690,520,'BAR0'],[686,150,'0xFEBC0000 (pending)']]} },
+    { fn:'smoke tests', label:'12 · smoke tests', cpu:[],
+      caption:'Allocates 5 frames, maps the demo page 0x4444_4444_0000 and round-trips a u64 through it, heap-allocates a Box, and prints to VGA — one quick proof per subsystem.',
+      ram:['ram-demopage','ram-boxTick','ram-vga'], devices:['dev-vga'],
+      arrow:{d:'M214,450 L214,12 L622,12 L622,75', labels:[[300,8,'0xb8000'],[500,20,'identity-mapped, not via offset']]} },
+    { fn:'executor.spawn_task / .run()', label:'13 · executor.run', cpu:[],
+      caption:'Spawns two async demo tasks into a BTreeMap-backed executor and drains it to completion — a small heap-resident task queue, not a separate module yet.',
+      ram:['ram-taskQueue'] },
+    { fn:'hlt_loop()', label:'14 · hlt_loop', cpu:[], idle:true,
+      caption:'CPU halts in a loop, woken only by the next hardware interrupt. Both paths lead here: executor.run() returning normally, or a Rust panic anywhere in kernel_main logging to serial first — same terminal state either way.' }
+  ];
+
+  var CPU_REGS = ['gdtr','idtr','tr','cs','cr3','cr2','rflags','rsp','al'];
+
+  var RAM_RULES = {
+    'ram-gdtTss': {revealAt:1}, 'ram-idt': {revealAt:2}, 'ram-bootinfo': {revealAt:4},
+    'ram-memmap': {revealAt:4}, 'ram-memmapUsable': {revealAt:5},
+    'ram-offsetband': {revealAt:6}, 'ram-pagetables': {revealAt:6},
+    'ram-heap': {revealAt:7}, 'ram-vecPci': {revealAt:10}, 'ram-boxTick': {revealAt:12},
+    'ram-taskQueue': {revealAt:13}, 'ram-demopage': {revealAt:12}, 'ram-vga': {revealAt:12},
+    'ram-nicbar0': {revealAt:11, permanentGhost:true}
+  };
+  var DEVICE_RULES = {
+    'dev-pic': {alwaysPresent:true}, 'dev-pci': {alwaysPresent:true}, 'dev-uart': {alwaysPresent:true},
+    'dev-kbd': {alwaysPresent:true}, 'dev-vga': {alwaysPresent:true}, 'dev-nic': {revealAt:10, unknown:true}
+  };
+
+  var current = 0;
+
+  function buildSidebar(){
+    var nav = document.getElementById('steplist');
+    STEPS.forEach(function(s, i){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = '<span class="n">'+(i+1)+'</span>'+s.label.split('·')[1].trim();
+      b.addEventListener('click', function(){ goTo(i); });
+      b.dataset.idx = i;
+      nav.appendChild(b);
+    });
+  }
+
+  function buildHeapGrid(){
+    var g = document.getElementById('heap-grid');
+    var cols = 5, size = 16, gap = 3, x0 = 274, y0 = 372;
+    for(var i=0;i<25;i++){
+      var col = i % cols, row = Math.floor(i/cols);
+      var r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('class','block');
+      r.setAttribute('x', x0 + col*(size+gap));
+      r.setAttribute('y', y0 + row*(size+gap));
+      r.setAttribute('width', size);
+      r.setAttribute('height', size);
+      r.setAttribute('fill','none');
+      r.setAttribute('stroke','currentColor');
+      r.setAttribute('stroke-width','1');
+      r.style.setProperty('--i', i);
+      r.dataset.filled = '0';
+      g.appendChild(r);
+    }
+  }
+
+  function stateFor(id, rule, step){
+    if(!rule) return 'dim';
+    if(rule.permanentGhost) return step >= rule.revealAt ? 'ghost' : 'hidden';
+    if(rule.unknown) return step >= rule.revealAt ? 'dim' : 'ghost';
+    if(rule.alwaysPresent) return 'dim';
+    return step >= rule.revealAt ? 'dim' : 'hidden';
+  }
+
+  function render(i){
+    current = i;
+    var step = STEPS[i];
+    var n = i + 1;
+
+    document.getElementById('step-no').textContent = 'FIG ' + n;
+    document.getElementById('step-fn').textContent = step.fn;
+    document.getElementById('step-caption').textContent = step.caption;
+    document.getElementById('counter').textContent = 'Step ' + n + ' / 14';
+    document.getElementById('prev').disabled = (i === 0);
+    document.getElementById('next').disabled = (i === STEPS.length - 1);
+
+    var nav = document.getElementById('steplist');
+    Array.prototype.forEach.call(nav.children, function(b, idx){
+      if(idx === i){ b.setAttribute('aria-current','step'); } else { b.removeAttribute('aria-current'); }
+    });
+
+    var active = step.cpu || [];
+    var style = CPU_REGS.map(function(r){
+      return '--c-' + r + ':' + (active.indexOf(r) > -1 ? 'var(--accent)' : 'var(--ink-muted)');
+    }).join(';');
+    document.getElementById('cpu-use').setAttribute('style', style);
+
+    Object.keys(RAM_RULES).forEach(function(id){
+      var el = document.querySelector('[data-id="'+id+'"]');
+      if(!el) return;
+      var isActiveNow = (step.ram || []).indexOf(id) > -1;
+      el.dataset.state = isActiveNow ? 'active' : stateFor(id, RAM_RULES[id], n);
+    });
+
+    Object.keys(DEVICE_RULES).forEach(function(id){
+      var el = document.querySelector('[data-id="'+id+'"]');
+      if(!el) return;
+      var isActiveNow = (step.devices || []).indexOf(id) > -1;
+      el.dataset.state = isActiveNow ? 'active' : stateFor(id, DEVICE_RULES[id], n);
+    });
+
+    var nicIdentified = STEPS.slice(0, n).some(function(s){ return s.nicIdentified; });
+    document.getElementById('nic-line1').textContent = nicIdentified ? 'NIC 8086:100e' : 'PCI 00:03.0';
+    document.getElementById('nic-line2').textContent = nicIdentified ? '00:03.0 · class 0x02' : 'unidentified';
+
+    var blocks = document.querySelectorAll('#heap-grid .block');
+    var fill = n >= 7;
+    Array.prototype.forEach.call(blocks, function(b){ b.dataset.filled = fill ? '1' : '0'; });
+
+    var layer = document.getElementById('arrow-layer');
+    layer.innerHTML = '';
+    if(step.arrow){
+      var p = document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d', step.arrow.d);
+      p.setAttribute('marker-end','url(#arrow)');
+      if(step.arrow.dashed) p.classList.add('dashed');
+      layer.appendChild(p);
+      step.arrow.labels.forEach(function(l){
+        var t = document.createElementNS('http://www.w3.org/2000/svg','text');
+        t.setAttribute('x', l[0]); t.setAttribute('y', l[1]); t.textContent = l[2];
+        layer.appendChild(t);
+      });
+    }
+
+    document.getElementById('halt-badge').dataset.on = step.idle ? '1' : '0';
+    document.getElementById('panic-inset').hidden = !step.idle;
+  }
+
+  function goTo(i){ if(i>=0 && i<STEPS.length) render(i); }
+
+  // Register reference shown on hover/focus/tap. `y`/`h` are the row's
+  // coordinates inside the #s-cpu symbol's 96×136 viewBox.
+  var REG_INFO = [
+    { id:'gdtr', y:13, h:10, name:'GDTR', full:'Global Descriptor Table Register',
+      what:'Holds the base address and size (limit) of the GDT in memory. It doesn’t hold descriptors itself, only where the table is.',
+      role:'Every segment selector (CS, SS, TR, …) is an index into the table GDTR points at. Loaded with <code>lgdt</code>, read with <code>sgdt</code>.',
+      here:'<code>init_gdt()</code> → <code>GDT.0.load()</code> runs <code>lgdt</code> with our static GDT (null, kernel code, TSS descriptors).' },
+    { id:'idtr', y:25, h:10, name:'IDTR', full:'Interrupt Descriptor Table Register',
+      what:'Holds the base address and size of the IDT: 256 gate entries, one per interrupt vector.',
+      role:'When vector N fires (exception or IRQ), the CPU reads entry N of the table IDTR points at to find the handler address, its code segment, and an optional IST stack. Loaded with <code>lidt</code>.',
+      here:'<code>init_idt()</code> → <code>IDT.load()</code>. Vectors used: 3 breakpoint, 8 double fault, 14 page fault, 32 timer, 33 keyboard.' },
+    { id:'tr', y:37, h:10, name:'TR', full:'Task Register',
+      what:'A selector pointing at the TSS descriptor in the GDT. A hidden part caches the TSS base address.',
+      role:'In 64-bit mode the TSS no longer does hardware task switching. It just holds stack pointers the CPU switches to on its own: RSP0–2 for privilege changes, and IST1–7 for chosen interrupt vectors. Loaded with <code>ltr</code>.',
+      here:'<code>init_gdt()</code> → <code>load_tss(tss_selector)</code>. The double-fault handler’s 20 KiB stack is found through TR → TSS <code>interrupt_stack_table[0]</code>, which is IST1 in Intel’s numbering.' },
+    { id:'cs', y:49, h:10, name:'CS', full:'Code Segment selector',
+      what:'A selector for the code descriptor currently in effect. Its low 2 bits are the current privilege level (CPL): 0 = kernel, 3 = user.',
+      role:'In 64-bit mode, base and limit are ignored. CS mainly decides whether code runs in 64-bit mode (the L bit) and at which privilege level. You can’t <code>mov</code> into CS. It changes only through far jumps/returns, interrupts, and <code>iretq</code>.',
+      here:'<code>init_gdt()</code> → <code>CS::set_reg(code_selector)</code>, which pushes the selector and a return address, then does a far return (<code>retfq</code>).' },
+    { id:'cr3', y:61, h:10, name:'CR3', full:'Control Register 3 · page table base',
+      what:'The physical address of the active level-4 page table (PML4), plus a few cache/PCID flag bits.',
+      role:'The MMU starts every page walk at CR3. Writing it switches the whole address space and flushes non-global TLB entries, which is how a per-process address space is swapped in.',
+      here:'<code>init_page_mapper()</code> → <code>Cr3::read()</code> to find the L4 table, then reaches it through <code>physical_memory_offset</code>. Never written: the bootloader already set it.' },
+    { id:'cr2', y:73, h:10, name:'CR2', full:'Control Register 2 · page fault address',
+      what:'The virtual address that caused the most recent page fault.',
+      role:'The CPU writes it automatically when it raises #PF (vector 14). Together with the error code it pushes, the handler can tell what went wrong: not present, write to read-only, user access to kernel page, …',
+      here:'<code>page_fault_handler</code> prints <code>Cr2::read()</code> as “Accessed Address”.' },
+    { id:'rflags', y:85, h:10, name:'RFLAGS.IF', full:'Interrupt Flag · bit 9 of RFLAGS',
+      what:'One bit: 1 = maskable hardware interrupts (IRQs from the PIC) are delivered, 0 = they wait until it’s set again.',
+      role:'Set by <code>sti</code>, cleared by <code>cli</code>. Exceptions and NMIs ignore it. Interrupt gates clear IF when entering a handler, and <code>iretq</code> restores the old RFLAGS.',
+      here:'<code>interrupts::enable()</code> runs <code>sti</code>, last in the init sequence. <code>hlt_loop()</code> depends on IF = 1; otherwise <code>hlt</code> would sleep forever.' },
+    { id:'rsp', y:97, h:10, name:'RSP', full:'Stack Pointer',
+      what:'The address of the top of the current stack. <code>push</code>/<code>call</code> move it down, and <code>pop</code>/<code>ret</code> move it up.',
+      role:'On an interrupt, the CPU pushes SS, RSP, RFLAGS, CS, and RIP onto the stack before jumping to the handler. If the IDT entry names an IST slot, it first switches RSP to that stack from the TSS.',
+      here:'Every handler receives that pushed frame as <code>InterruptStackFrame</code>. Double fault switches to the IST stack first, so a kernel stack overflow still gets reported instead of triple-faulting.' },
+    { id:'al', y:117, h:12, name:'AL', full:'low 8 bits of RAX · general purpose',
+      what:'An ordinary data register. AL is the lowest byte of RAX, AX the low 16 bits, EAX the low 32 bits.',
+      role:'Port I/O has no dedicated register. <code>out dx, al</code> / <code>in al, dx</code> require the data in AL/AX/EAX and the port number in DX (or an 8-bit immediate).',
+      here:'PIC init bytes and the keyboard scancode (port 0x60) are 8-bit, so they go through AL. PCI config at 0xCF8/0xCFC is 32-bit and uses EAX.' }
+  ];
+
+  function buildRegHits(){
+    var g = document.getElementById('reg-hits');
+    var tip = document.getElementById('reg-tip');
+    // Mirror how <use x=24 y=170 width=190 height=270> scales the 96×136
+    // symbol under the default preserveAspectRatio (xMidYMid meet).
+    var useX = 24, useY = 170, useW = 190, useH = 270;
+    var scale = Math.min(useW / 96, useH / 136);
+    var offX = useX + (useW - 96 * scale) / 2;
+    var offY = useY + (useH - 136 * scale) / 2;
+    var openEl = null;
+
+    function show(rect, info){
+      tip.innerHTML =
+        '<span class="rt-name">' + info.name + '</span><span class="rt-full">' + info.full + '</span>' +
+        '<p>' + info.what + '</p>' +
+        '<span class="rt-label">Role</span><p>' + info.role + '</p>' +
+        '<span class="rt-label">In papi_os</span><p>' + info.here + '</p>';
+      tip.hidden = false;
+      // Prefer the right side of the row; fall back to below it on narrow screens.
+      var r = rect.getBoundingClientRect();
+      var tw = tip.offsetWidth, th = tip.offsetHeight, m = 16;
+      var left = r.right + 10, top = r.top - 6;
+      if(left + tw > window.innerWidth - m){ left = Math.max(m, r.left); top = r.bottom + 8; }
+      if(top + th > window.innerHeight - m){ top = Math.max(m, r.top - th - 8); }
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+      if(openEl && openEl !== rect) openEl.removeAttribute('data-open');
+      rect.setAttribute('data-open', '1');
+      rect.setAttribute('aria-describedby', 'reg-tip');
+      openEl = rect;
+    }
+    function hide(){
+      tip.hidden = true;
+      if(openEl){ openEl.removeAttribute('data-open'); openEl.removeAttribute('aria-describedby'); }
+      openEl = null;
+    }
+
+    REG_INFO.forEach(function(info){
+      var r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', offX + 6 * scale);
+      r.setAttribute('y', offY + info.y * scale);
+      r.setAttribute('width', 84 * scale);
+      r.setAttribute('height', info.h * scale);
+      r.setAttribute('tabindex', '0');
+      r.setAttribute('role', 'button');
+      r.setAttribute('aria-label', info.name + ': ' + info.full);
+      r.addEventListener('mouseenter', function(){ show(r, info); });
+      r.addEventListener('mouseleave', hide);
+      r.addEventListener('focus', function(){ show(r, info); });
+      r.addEventListener('blur', hide);
+      // Touch has no hover: a tap toggles the tooltip.
+      r.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(openEl === r) hide(); else show(r, info);
+      });
+      g.appendChild(r);
+    });
+
+    document.addEventListener('click', hide);
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') hide(); });
+    // A fixed-position tip would drift away from its row on scroll.
+    window.addEventListener('scroll', hide, { passive:true });
+    document.querySelector('.stage-wrap').addEventListener('scroll', hide, { passive:true });
+  }
+
+  buildSidebar();
+  buildHeapGrid();
+  buildRegHits();
+  document.getElementById('prev').addEventListener('click', function(){ goTo(current-1); });
+  document.getElementById('next').addEventListener('click', function(){ goTo(current+1); });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowRight') goTo(current+1);
+    if(e.key === 'ArrowLeft') goTo(current-1);
+  });
+  render(0);
+})();
+</script>
+
+</body>
+</html>
