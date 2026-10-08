@@ -85,6 +85,20 @@
   .controls button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   .counter{ font-family:'JetBrains Mono',monospace; font-size:.72rem; color:var(--ink-muted); white-space:nowrap; }
 
+  /* Invisible hit areas laid over each register row of the CPU symbol.
+     The rows live inside <symbol>/<use>, whose shadow tree can't be targeted
+     per row, so hover/focus is handled by these overlay rects instead. */
+  #reg-hits rect{ fill:transparent; stroke:transparent; stroke-width:1.4; pointer-events:all; cursor:help; }
+  #reg-hits rect:hover, #reg-hits rect:focus-visible, #reg-hits rect[data-open="1"]{ stroke:var(--accent); outline:none; }
+
+  .reg-tip{ position:fixed; z-index:10; width:min(340px, calc(100vw - 32px)); background:var(--surface); color:var(--ink); border:1px solid var(--ink); border-radius:2px; padding:10px 12px 11px; box-shadow:0 6px 18px rgb(0 0 0 / .18); font-size:.82rem; line-height:1.5; pointer-events:none; }
+  .reg-tip[hidden]{ display:none; }
+  .reg-tip .rt-name{ font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--accent); }
+  .reg-tip .rt-full{ font-family:'JetBrains Mono',monospace; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); margin-left:6px; }
+  .reg-tip p{ margin:.45em 0 0; }
+  .reg-tip .rt-label{ font-family:'JetBrains Mono',monospace; font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-muted); display:block; margin-top:.6em; }
+  .reg-tip code{ font-family:'JetBrains Mono',monospace; font-size:.92em; }
+
   .panic-inset{ margin-top:14px; border:1px solid var(--accent); border-radius:2px; padding:10px 12px; font-size:.82rem; line-height:1.5; background:var(--surface); }
   .panic-inset b{ color:var(--accent); }
 
@@ -129,7 +143,7 @@
   <header class="title-block">
     <div class="kicker">Reference manual</div>
     <h1>Boot Datasheet</h1>
-    <p class="dek">Electrical and sequencing behavior of <code class="mono">kernel_main</code> across all 14 boot steps. Step through to see which register, memory region, and device is active, and what travels between them.</p>
+    <p class="dek">Electrical and sequencing behavior of <code class="mono">kernel_main</code> across all 14 boot steps. Step through to see which register, memory region, and device is active, and what travels between them. Hover or tap any CPU register to see what it holds and where papi_os touches it.</p>
   </header>
 
   <div class="board">
@@ -302,8 +316,11 @@
           </g>
 
           <g id="arrow-layer"></g>
+          <!-- drawn last so register hover targets sit above arrows -->
+          <g id="reg-hits"></g>
         </svg>
       </div>
+      <div class="reg-tip" id="reg-tip" role="tooltip" hidden></div>
 
       <div class="caption-panel">
         <div>
@@ -500,8 +517,115 @@
 
   function goTo(i){ if(i>=0 && i<STEPS.length) render(i); }
 
+  // Register reference shown on hover/focus/tap. `y`/`h` are the row's
+  // coordinates inside the #s-cpu symbol's 96×136 viewBox.
+  var REG_INFO = [
+    { id:'gdtr', y:13, h:10, name:'GDTR', full:'Global Descriptor Table Register',
+      what:'Holds the base address and size (limit) of the GDT in memory. It doesn’t hold descriptors itself, only where the table is.',
+      role:'Every segment selector (CS, SS, TR, …) is an index into the table GDTR points at. Loaded with <code>lgdt</code>, read with <code>sgdt</code>.',
+      here:'<code>init_gdt()</code> → <code>GDT.0.load()</code> runs <code>lgdt</code> with our static GDT (null, kernel code, TSS descriptors).' },
+    { id:'idtr', y:25, h:10, name:'IDTR', full:'Interrupt Descriptor Table Register',
+      what:'Holds the base address and size of the IDT: 256 gate entries, one per interrupt vector.',
+      role:'When vector N fires (exception or IRQ), the CPU reads entry N of the table IDTR points at to find the handler address, its code segment, and an optional IST stack. Loaded with <code>lidt</code>.',
+      here:'<code>init_idt()</code> → <code>IDT.load()</code>. Vectors used: 3 breakpoint, 8 double fault, 14 page fault, 32 timer, 33 keyboard.' },
+    { id:'tr', y:37, h:10, name:'TR', full:'Task Register',
+      what:'A selector pointing at the TSS descriptor in the GDT. A hidden part caches the TSS base address.',
+      role:'In 64-bit mode the TSS no longer does hardware task switching. It just holds stack pointers the CPU switches to on its own: RSP0–2 for privilege changes, and IST1–7 for chosen interrupt vectors. Loaded with <code>ltr</code>.',
+      here:'<code>init_gdt()</code> → <code>load_tss(tss_selector)</code>. The double-fault handler’s 20 KiB stack is found through TR → TSS <code>interrupt_stack_table[0]</code>, which is IST1 in Intel’s numbering.' },
+    { id:'cs', y:49, h:10, name:'CS', full:'Code Segment selector',
+      what:'A selector for the code descriptor currently in effect. Its low 2 bits are the current privilege level (CPL): 0 = kernel, 3 = user.',
+      role:'In 64-bit mode, base and limit are ignored. CS mainly decides whether code runs in 64-bit mode (the L bit) and at which privilege level. You can’t <code>mov</code> into CS. It changes only through far jumps/returns, interrupts, and <code>iretq</code>.',
+      here:'<code>init_gdt()</code> → <code>CS::set_reg(code_selector)</code>, which pushes the selector and a return address, then does a far return (<code>retfq</code>).' },
+    { id:'cr3', y:61, h:10, name:'CR3', full:'Control Register 3 · page table base',
+      what:'The physical address of the active level-4 page table (PML4), plus a few cache/PCID flag bits.',
+      role:'The MMU starts every page walk at CR3. Writing it switches the whole address space and flushes non-global TLB entries, which is how a per-process address space is swapped in.',
+      here:'<code>init_page_mapper()</code> → <code>Cr3::read()</code> to find the L4 table, then reaches it through <code>physical_memory_offset</code>. Never written: the bootloader already set it.' },
+    { id:'cr2', y:73, h:10, name:'CR2', full:'Control Register 2 · page fault address',
+      what:'The virtual address that caused the most recent page fault.',
+      role:'The CPU writes it automatically when it raises #PF (vector 14). Together with the error code it pushes, the handler can tell what went wrong: not present, write to read-only, user access to kernel page, …',
+      here:'<code>page_fault_handler</code> prints <code>Cr2::read()</code> as “Accessed Address”.' },
+    { id:'rflags', y:85, h:10, name:'RFLAGS.IF', full:'Interrupt Flag · bit 9 of RFLAGS',
+      what:'One bit: 1 = maskable hardware interrupts (IRQs from the PIC) are delivered, 0 = they wait until it’s set again.',
+      role:'Set by <code>sti</code>, cleared by <code>cli</code>. Exceptions and NMIs ignore it. Interrupt gates clear IF when entering a handler, and <code>iretq</code> restores the old RFLAGS.',
+      here:'<code>interrupts::enable()</code> runs <code>sti</code>, last in the init sequence. <code>hlt_loop()</code> depends on IF = 1; otherwise <code>hlt</code> would sleep forever.' },
+    { id:'rsp', y:97, h:10, name:'RSP', full:'Stack Pointer',
+      what:'The address of the top of the current stack. <code>push</code>/<code>call</code> move it down, and <code>pop</code>/<code>ret</code> move it up.',
+      role:'On an interrupt, the CPU pushes SS, RSP, RFLAGS, CS, and RIP onto the stack before jumping to the handler. If the IDT entry names an IST slot, it first switches RSP to that stack from the TSS.',
+      here:'Every handler receives that pushed frame as <code>InterruptStackFrame</code>. Double fault switches to the IST stack first, so a kernel stack overflow still gets reported instead of triple-faulting.' },
+    { id:'al', y:117, h:12, name:'AL', full:'low 8 bits of RAX · general purpose',
+      what:'An ordinary data register. AL is the lowest byte of RAX, AX the low 16 bits, EAX the low 32 bits.',
+      role:'Port I/O has no dedicated register. <code>out dx, al</code> / <code>in al, dx</code> require the data in AL/AX/EAX and the port number in DX (or an 8-bit immediate).',
+      here:'PIC init bytes and the keyboard scancode (port 0x60) are 8-bit, so they go through AL. PCI config at 0xCF8/0xCFC is 32-bit and uses EAX.' }
+  ];
+
+  function buildRegHits(){
+    var g = document.getElementById('reg-hits');
+    var tip = document.getElementById('reg-tip');
+    // Mirror how <use x=24 y=170 width=190 height=270> scales the 96×136
+    // symbol under the default preserveAspectRatio (xMidYMid meet).
+    var useX = 24, useY = 170, useW = 190, useH = 270;
+    var scale = Math.min(useW / 96, useH / 136);
+    var offX = useX + (useW - 96 * scale) / 2;
+    var offY = useY + (useH - 136 * scale) / 2;
+    var openEl = null;
+
+    function show(rect, info){
+      tip.innerHTML =
+        '<span class="rt-name">' + info.name + '</span><span class="rt-full">' + info.full + '</span>' +
+        '<p>' + info.what + '</p>' +
+        '<span class="rt-label">Role</span><p>' + info.role + '</p>' +
+        '<span class="rt-label">In papi_os</span><p>' + info.here + '</p>';
+      tip.hidden = false;
+      // Prefer the right side of the row; fall back to below it on narrow screens.
+      var r = rect.getBoundingClientRect();
+      var tw = tip.offsetWidth, th = tip.offsetHeight, m = 16;
+      var left = r.right + 10, top = r.top - 6;
+      if(left + tw > window.innerWidth - m){ left = Math.max(m, r.left); top = r.bottom + 8; }
+      if(top + th > window.innerHeight - m){ top = Math.max(m, r.top - th - 8); }
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+      if(openEl && openEl !== rect) openEl.removeAttribute('data-open');
+      rect.setAttribute('data-open', '1');
+      rect.setAttribute('aria-describedby', 'reg-tip');
+      openEl = rect;
+    }
+    function hide(){
+      tip.hidden = true;
+      if(openEl){ openEl.removeAttribute('data-open'); openEl.removeAttribute('aria-describedby'); }
+      openEl = null;
+    }
+
+    REG_INFO.forEach(function(info){
+      var r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', offX + 6 * scale);
+      r.setAttribute('y', offY + info.y * scale);
+      r.setAttribute('width', 84 * scale);
+      r.setAttribute('height', info.h * scale);
+      r.setAttribute('tabindex', '0');
+      r.setAttribute('role', 'button');
+      r.setAttribute('aria-label', info.name + ': ' + info.full);
+      r.addEventListener('mouseenter', function(){ show(r, info); });
+      r.addEventListener('mouseleave', hide);
+      r.addEventListener('focus', function(){ show(r, info); });
+      r.addEventListener('blur', hide);
+      // Touch has no hover: a tap toggles the tooltip.
+      r.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(openEl === r) hide(); else show(r, info);
+      });
+      g.appendChild(r);
+    });
+
+    document.addEventListener('click', hide);
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') hide(); });
+    // A fixed-position tip would drift away from its row on scroll.
+    window.addEventListener('scroll', hide, { passive:true });
+    document.querySelector('.stage-wrap').addEventListener('scroll', hide, { passive:true });
+  }
+
   buildSidebar();
   buildHeapGrid();
+  buildRegHits();
   document.getElementById('prev').addEventListener('click', function(){ goTo(current-1); });
   document.getElementById('next').addEventListener('click', function(){ goTo(current+1); });
   document.addEventListener('keydown', function(e){
